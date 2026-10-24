@@ -1,0 +1,27 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+.env
+.env.local
+
+# The synthetic corpus IS committed (data/raw + data/manifest.yaml): it is
+# fictional, small, and committing it means a reviewer can clone and run without
+# installing a Thai font to regenerate the PDFs. Regenerate with `make dataset`.
+#
+# The SQLite knowledge base is derived from it, so it is not.
+data/*.sqlite
+data/*.sqlite-*
+
+# Eval output
+eval/results/*
+!eval/results/.gitkeep
+
+.pytest_cache/
+.ruff_cache/
+.idea/
+.vscode/

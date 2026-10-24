@@ -1,0 +1,70 @@
+# One command to run the stack: `docker compose up -d`
+#
+#   db      Postgres 16 + pgvector — documents, chunks, audit log
+#   ollama  local embedding model (bge-m3); also serves generation when
+#           GENERATION_BACKEND=ollama
+#   api     the application
+#
+# Values come from .env (copy from .env.example first).
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vantage}
+      POSTGRES_USER: ${POSTGRES_USER:-vantage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change_me}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs on first init: enables the pgvector extension. The application
+      # creates the tables itself (init_schema) so the embedding dimension
+      # comes from config.
+      - ./src/vantage/db/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vantage}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    # Embeddings are the one model call that touches every document, so it
+    # stays local. Pull it once after the container is up:
+    #   docker compose exec ollama ollama pull bge-m3
+    healthcheck:
+      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      # Override the hosts so the app reaches the sibling containers.
+      POSTGRES_HOST: db
+      OLLAMA_BASE_URL: http://ollama:11434
+    ports:
+      - "${API_PORT:-8000}:8000"
+    volumes:
+      # The corpus and the derived SQLite knowledge base, so `ingest` inside
+      # the container and on the host see the same files.
+      - ./data:/app/data
+      - ./policy:/app/policy
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  ollama:

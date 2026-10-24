@@ -1,0 +1,53 @@
+# Access policy — versioned, reviewable, in git.
+#
+# Deny-by-default: a principal whose role is not listed here can reach nothing.
+# An explicit `deny` always beats a wildcard `allow`. Both rules have tests
+# (tests/test_policy.py) that must stay green.
+#
+# Two layers decide every access:
+#   1. workspace overlap — the principal's workspaces ∩ the asset's workspaces
+#   2. asset patterns    — allow/deny globs on the asset name
+# They are deliberately overlapping (defense in depth), so a mistake in the
+# asset tags alone is not enough to leak a document.
+
+version: 1
+
+# --- Principals (stub identity provider; a real one would supply these) ---
+principals:
+  ceo:
+    display_name: "คุณสมชาย — CEO"
+    roles: [executive]
+  academic_director:
+    display_name: "คุณปราณี — ผู้อำนวยการฝ่ายวิชาการ"
+    roles: [academic]
+
+# --- Roles → what they may reach ---
+roles:
+  executive:
+    workspaces: [A]
+    documents:
+      allow: ["*"]
+    tables:
+      allow: ["*"]
+
+  academic:
+    workspaces: [B]
+    documents:
+      allow: ["*"]
+    tables:
+      allow: ["*"]
+      # Redundant with the workspace filter below (finance is workspace A only)
+      # and that is the point: the gate does not depend on the asset tags being
+      # right. If finance were ever mis-tagged into workspace B, this still holds.
+      deny: ["finance_*"]
+
+# --- Asset catalog for the tabular knowledge base ---
+# Documents carry their own workspace tags in the `documents` table (set at
+# ingest); SQL tables have no such row, so they are tagged here.
+tables:
+  enrollment:
+    workspaces: [A, B]
+    classification: internal
+  finance_monthly:
+    workspaces: [A]
+    classification: confidential
