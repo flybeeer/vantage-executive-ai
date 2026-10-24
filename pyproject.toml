@@ -36,6 +36,8 @@ dev = [
     "ruff",
     "black",
     "pytest",
+    # Embedded Postgres + pgvector for the DB-backed tests — no Docker needed.
+    "pgserver",
 ]
 # Frontier API model for generation (the default generation route).
 api = [

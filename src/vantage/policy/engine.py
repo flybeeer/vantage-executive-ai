@@ -150,7 +150,9 @@ def _role_workspaces(policy: _Policy, roles: tuple[str, ...]) -> tuple[str, ...]
 def _matches(name: str, patterns: list[str]) -> str | None:
     """Return the first glob in `patterns` that matches `name`, else None."""
     for pattern in patterns:
-        if fnmatch.fnmatch(name, pattern):
+        # fnmatchcase, not fnmatch: fnmatch folds case on Windows only, and the
+        # retrieval query (retrieval.access) matches case-sensitively everywhere.
+        if fnmatch.fnmatchcase(name, pattern):
             return pattern
     return None
 

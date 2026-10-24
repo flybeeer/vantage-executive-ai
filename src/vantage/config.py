@@ -69,7 +69,7 @@ class Settings(BaseSettings):
     rrf_k: int = 60
 
     # ---------- Reranker ----------
-    reranker_type: str = "none"  # none | local | llm
+    reranker_type: str = "none"  # none | local
     reranker_model: str = "bge-reranker-v2-m3"
 
     # ---------- Guardrails / refusal ----------

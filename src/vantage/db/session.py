@@ -125,7 +125,7 @@ def init_schema() -> None:
                 principal       TEXT        NOT NULL,
                 workspace       TEXT        NOT NULL,
                 question        TEXT        NOT NULL,
-                -- allowed | denied | refused  (see policy + guardrails)
+                -- allowed | denied | refused | error  (see observability.audit)
                 decision        TEXT        NOT NULL,
                 decision_reason TEXT,
                 route           TEXT,

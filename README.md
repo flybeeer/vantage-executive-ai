@@ -39,7 +39,8 @@ what had to be rebuilt.
 | Schema: documents / chunks / audit log | done |
 | Policy engine (deny-by-default) | done |
 | Thai-aware ingestion | done |
-| Hybrid retrieval with the access filter pushed into the query | next |
+| Hybrid retrieval with the access filter pushed into the query | done |
+| Append-only audit log, written on every exit (incl. denials, errors) | done |
 | SQL route for numeric questions | next |
 | UI + eval harness | next |
 
@@ -59,11 +60,23 @@ file                             ver  ws     data date    sha256     stored
 ---------------------------------------------------------------------------
 enrollment_2025_2026.xlsx        v1   A,B    2026-09-30   1f0a…      420 rows → enrollment
 finance_monthly.csv              v1   A      2026-09-30   9c41…      84 rows → finance_monthly
-board_meeting_2026Q2.pdf         v1   A      2026-06-30   b7e2…      7 chunks / 2 pages
-strategy_plan_2026.pdf           v1   A,B    2026-01-15   3d58…      4 chunks / 1 pages
-strategy_plan_2026.pdf           v2   A,B    2026-07-01   aa19…      4 chunks / 1 pages
-academic_report_term1.pdf        v1   B      2026-08-31   6ef0…      5 chunks / 1 pages
+board_meeting_2026Q2.pdf         v1   A      2026-06-30   b7e2…      3 chunks / 2 pages
+strategy_plan_2026.pdf           v1   A,B    2026-01-15   3d58…      1 chunks / 1 pages
+strategy_plan_2026.pdf           v2   A,B    2026-07-01   aa19…      1 chunks / 1 pages
+academic_report_term1.pdf        v1   B      2026-08-31   6ef0…      1 chunks / 1 pages
 ```
+
+Ask a question as either user (every call is audited):
+
+```bash
+python scripts/ask.py --user ceo "บอร์ดตัดสินใจอะไรเรื่องการขยายสาขา"
+python scripts/ask.py --user academic_director "รายได้สาขาบางนาเดือน ส.ค. เท่าไร" --audit
+```
+
+`make test` needs no Docker: the database tests start an embedded Postgres with
+pgvector (`pgserver`) and ingest the real corpus into it. They use a stand-in
+embedding, so they prove the access filtering, provenance and audit plumbing —
+not retrieval quality, which the eval harness measures against bge-m3.
 
 Regenerating the corpus (`make dataset`) needs a Thai font; the generated files
 are committed so you don't need one just to run the demo.
