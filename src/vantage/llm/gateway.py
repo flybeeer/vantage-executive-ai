@@ -5,9 +5,11 @@ Two kinds of call, with deliberately different privacy properties:
 - **Embeddings** are always local (Ollama + bge-m3). Embedding is the step that
   touches *every* document, so sending it to an API would mean shipping the
   client's whole corpus off-site. There is no API backend here on purpose.
-- **Generation** is swappable (`GENERATION_BACKEND=anthropic|ollama`). Only the
-  question plus the retrieved chunks are sent, and switching to `ollama` keeps
-  even that on-premise.
+- **Generation** is swappable (`GENERATION_BACKEND=anthropic|vertex|ollama`).
+  Only the question plus the retrieved chunks are sent, and switching to
+  `ollama` keeps even that on-premise. `vertex` is the same Claude model served
+  from the client's own Google Cloud project, authenticated with Application
+  Default Credentials instead of an API key.
 
 Keeping both behind one module is what makes "swap the provider" a config change
 rather than a refactor.
@@ -97,34 +99,48 @@ def _complete_ollama(messages: list[dict], settings: Settings) -> Completion:
     )
 
 
-def _complete_anthropic(messages: list[dict], settings: Settings) -> Completion:
-    """Generate with the frontier API model.
+def _anthropic_client(settings: Settings):
+    """Build the Claude client for the configured backend (anthropic | vertex)."""
+    try:
+        from anthropic import Anthropic, AnthropicVertex
+    except ImportError as exc:  # pragma: no cover - dependency hint
+        raise LLMError('the anthropic package is missing — pip install -e ".[api]"') from exc
+
+    if settings.generation_backend.lower() == "vertex":
+        if not settings.vertex_project_id:
+            raise LLMError("GENERATION_BACKEND=vertex but VERTEX_PROJECT_ID is empty")
+        # Credentials come from ADC (`gcloud auth application-default login`
+        # locally, the service account in production) — no secret in .env.
+        return AnthropicVertex(project_id=settings.vertex_project_id, region=settings.vertex_region)
+
+    if not settings.anthropic_api_key:
+        raise LLMError("GENERATION_BACKEND=anthropic but ANTHROPIC_API_KEY is empty")
+    kwargs = {"api_key": settings.anthropic_api_key}
+    if settings.anthropic_base_url:
+        kwargs["base_url"] = settings.anthropic_base_url
+    return Anthropic(**kwargs)
+
+
+def _complete_claude(messages: list[dict], settings: Settings) -> Completion:
+    """Generate with Claude, via the public API or Vertex AI.
 
     The system prompt is a top-level parameter in this API rather than a message,
     so it is lifted out of the message list here — callers build one uniform
     message list and do not need to know which provider they are talking to.
     """
-    if not settings.anthropic_api_key:
-        raise LLMError("GENERATION_BACKEND=anthropic but ANTHROPIC_API_KEY is empty")
-    try:
-        from anthropic import Anthropic
-    except ImportError as exc:  # pragma: no cover - dependency hint
-        raise LLMError('the anthropic package is missing — pip install -e ".[api]"') from exc
-
+    client = _anthropic_client(settings)
     system = "\n\n".join(m["content"] for m in messages if m["role"] == "system")
     turns = [m for m in messages if m["role"] != "system"]
 
-    kwargs = {"api_key": settings.anthropic_api_key}
-    if settings.anthropic_base_url:
-        kwargs["base_url"] = settings.anthropic_base_url
-    client = Anthropic(**kwargs)
-
-    resp = client.messages.create(
-        model=settings.api_model,
-        max_tokens=2048,
-        system=system,
-        messages=turns,
-    )
+    try:
+        resp = client.messages.create(
+            model=settings.api_model,
+            max_tokens=2048,
+            system=system,
+            messages=turns,
+        )
+    except Exception as exc:
+        raise LLMError(f"{settings.generation_backend} generation call failed ({exc})") from exc
     text = "".join(block.text for block in resp.content if block.type == "text").strip()
     return Completion(
         text=text,
@@ -138,8 +154,8 @@ def complete(messages: list[dict], settings: Settings | None = None) -> Completi
     """Generate an answer with the configured backend."""
     settings = settings or get_settings()
     backend = settings.generation_backend.lower()
-    if backend == "anthropic":
-        return _complete_anthropic(messages, settings)
+    if backend in ("anthropic", "vertex"):
+        return _complete_claude(messages, settings)
     if backend == "ollama":
         return _complete_ollama(messages, settings)
-    raise LLMError(f"unknown GENERATION_BACKEND {backend!r} (expected anthropic | ollama)")
+    raise LLMError(f"unknown GENERATION_BACKEND {backend!r} (expected anthropic | vertex | ollama)")

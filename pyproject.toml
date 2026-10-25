@@ -39,9 +39,10 @@ dev = [
     # Embedded Postgres + pgvector for the DB-backed tests — no Docker needed.
     "pgserver",
 ]
-# Frontier API model for generation (the default generation route).
+# Frontier API model for generation (the default generation route). The vertex
+# extra pulls google-auth for GENERATION_BACKEND=vertex.
 api = [
-    "anthropic",
+    "anthropic[vertex]",
 ]
 # Local cross-encoder reranker (bge-reranker-v2-m3). Heavy — pulls torch.
 rerank = [

@@ -43,10 +43,12 @@ class Settings(BaseSettings):
     embedding_dim: int = 1024
 
     # ---------- Generation ----------
-    generation_backend: str = "anthropic"  # anthropic | ollama
+    generation_backend: str = "anthropic"  # anthropic | vertex | ollama
     anthropic_api_key: str = ""
     anthropic_base_url: str = ""  # blank = public API; set to use a gateway
-    api_model: str = "claude-sonnet-5"
+    vertex_project_id: str = ""
+    vertex_region: str = "global"
+    api_model: str = "claude-sonnet-5-5"
     local_model: str = "qwen2.5:7b"
 
     # ---------- Tabular knowledge base ----------
