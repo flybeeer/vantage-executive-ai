@@ -58,12 +58,12 @@ make ingest
 ```
 file                             ver  ws     data date    sha256     stored
 ---------------------------------------------------------------------------
-enrollment_2025_2026.xlsx        v1   A,B    2026-09-30   1f0a…      420 rows → enrollment
-finance_monthly.csv              v1   A      2026-09-30   9c41…      84 rows → finance_monthly
-board_meeting_2026Q2.pdf         v1   A      2026-06-30   b7e2…      3 chunks / 2 pages
-strategy_plan_2026.pdf           v1   A,B    2026-01-15   3d58…      1 chunks / 1 pages
-strategy_plan_2026.pdf           v2   A,B    2026-07-01   aa19…      1 chunks / 1 pages
-academic_report_term1.pdf        v1   B      2026-08-31   6ef0…      1 chunks / 1 pages
+enrollment_2025_2026.xlsx        v1   A,B    2026-09-30   2e275cc5   420 rows → enrollment
+finance_monthly.csv              v1   A      2026-09-30   6ed132ec   84 rows → finance_monthly
+board_meeting_2026Q2.pdf         v1   A      2026-06-30   1cf387a1   3 chunks / 2 pages
+strategy_plan_2026.pdf           v1   A,B    2026-01-15   0bc57dba   1 chunks / 1 pages
+strategy_plan_2026_v2.pdf        v2   A,B    2026-07-01   4746d30b   1 chunks / 1 pages
+academic_report_term1.pdf        v1   B      2026-08-31   d800158e   1 chunks / 1 pages
 ```
 
 Ask a question as either user (every call is audited):
