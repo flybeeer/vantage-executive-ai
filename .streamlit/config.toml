@@ -1,0 +1,10 @@
+# Streamlit settings for the demo UI (read from the working directory).
+
+[browser]
+# No usage telemetry: this is a "private AI" demo, and the UI should not phone home.
+gatherUsageStats = false
+
+[theme]
+# Streamlit's default accent is red, which makes every selected filter look
+# like an error next to the red "denied" badge.
+primaryColor = "#2563eb"

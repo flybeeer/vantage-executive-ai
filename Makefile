@@ -1,10 +1,10 @@
-.PHONY: help install fmt lint test up down dataset ingest eval
+.PHONY: help install fmt lint test up down dataset ingest ui eval
 
 help:           ## list targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/'
 
 install:        ## install the package + dev tooling
-	pip install -e ".[dev,api]"
+	pip install -e ".[dev,api,ui]"
 
 fmt:            ## format with black + ruff
 	black src tests scripts
@@ -28,6 +28,9 @@ dataset:        ## regenerate the synthetic corpus (needs a Thai font)
 
 ingest:         ## load the corpus: provenance + chunks + SQL knowledge base
 	python scripts/ingest.py
+
+ui:             ## run the demo UI on http://localhost:8501 (stack must be up + ingested)
+	streamlit run src/vantage/ui/app.py --server.address localhost
 
 eval:           ## run the golden set and write EVAL.md
 	python scripts/run_eval.py

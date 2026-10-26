@@ -45,7 +45,8 @@ what had to be rebuilt.
 | Answer format (facts / analysis / limitations), every number checked against its source | done |
 | Refusal: uncovered period, model "not found", evidence floor | done |
 | Prompt-injection guard (question screen + redaction of retrieved text) | done |
-| UI + eval harness | next |
+| Demo UI: sign in as A or B, chat with a citation panel, audit log page | done |
+| Eval harness → `EVAL.md` | next |
 
 ## Running it
 
@@ -69,7 +70,16 @@ strategy_plan_2026_v2.pdf        v2   A,B    2026-07-01   b88e4958   1 chunks / 
 academic_report_term1.pdf        v1   B      2026-08-31   e18a8e62   1 chunks / 1 pages
 ```
 
-Ask a question as either user (every call is audited):
+Open the demo UI at **http://localhost:8501** (the `ui` service; or `make ui`
+outside Docker). Pick a user in the sidebar — the CEO (workspace A) or the
+Academic Director (workspace B) — and ask, or click an example question. Each
+answer shows its facts, analysis and limitations, and under them every source:
+the chunk text, or the SQL and the spreadsheet rows a figure came from. The
+**Audit log** page lists every question, including the denied and refused
+ones. Choosing a user stands in for a login, so the UI is published on
+localhost only.
+
+Or ask from the command line (every call is audited):
 
 ```bash
 python scripts/ask.py --user ceo "บอร์ดตัดสินใจอะไรเรื่องการขยายสาขา"

@@ -69,8 +69,12 @@ class Answer:
         used |= {int(n) for n in _MARKER_RE.findall(self.analysis)}
         return [c for c in self.citations if c.n in used]
 
-    def render(self) -> str:
-        """The user-facing Thai answer (Markdown)."""
+    def render(self, *, sources: bool = True) -> str:
+        """The user-facing Thai answer (Markdown).
+
+        `sources=False` leaves out the reference list, for a UI that shows the
+        citations in a panel of its own.
+        """
         parts = ["**ข้อเท็จจริง**"]
         for fact in self.facts:
             marks = "".join(f"[{n}]" for n in fact.sources)
@@ -79,6 +83,8 @@ class Answer:
             parts += ["", "**บทวิเคราะห์**", self.analysis]
         if self.limitations:
             parts += ["", "**ข้อจำกัด**", *(f"- {item}" for item in self.limitations)]
+        if not sources:
+            return "\n".join(parts)
         parts += ["", "**แหล่งอ้างอิง**"]
         shown_sql: set[str] = set()
         for c in self.cited:

@@ -44,6 +44,10 @@ dev = [
 api = [
     "anthropic[vertex]",
 ]
+# The demo UI (login as user A or B, chat with a citation panel, audit page).
+ui = [
+    "streamlit",
+]
 # Local cross-encoder reranker (bge-reranker-v2-m3). Heavy — pulls torch.
 rerank = [
     "sentence-transformers",

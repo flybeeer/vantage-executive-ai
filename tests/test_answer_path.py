@@ -292,6 +292,16 @@ def test_a_source_marked_in_the_analysis_is_listed():
     assert [c.n for c in answer.cited] == [1, 2]
 
 
+def test_render_without_sources_leaves_the_reference_list_to_the_ui():
+    texts = {1: "เป้าหมาย 5,400 คน", 2: "x"}
+    data = {"answerable": True, "facts": [{"text": "เป้าหมายคือ 5,400 คน", "sources": [1]}]}
+    answer, _ = from_document_reply(data, _doc_citations(), texts, "q")
+    bare = answer.render(sources=False)
+    assert bare.startswith("**ข้อเท็จจริง**\n- เป้าหมายคือ 5,400 คน [1]")
+    assert "แหล่งอ้างอิง" not in bare
+    assert "แหล่งอ้างอิง" in answer.render()
+
+
 def test_document_reply_refusal_carries_what_is_missing():
     answer, missing = from_document_reply(
         {"answerable": False, "missing": "ไม่มีข้อมูลราคาของคู่แข่ง"}, _doc_citations(), {}, "q"

@@ -4,6 +4,7 @@
 #   ollama  local embedding model (bge-m3); also serves generation when
 #           GENERATION_BACKEND=ollama
 #   api     the application
+#   ui      the demo UI (Streamlit) on http://localhost:8501
 #
 # Values come from .env (copy from .env.example first).
 
@@ -56,6 +57,32 @@ services:
     volumes:
       # The corpus and the derived SQLite knowledge base, so `ingest` inside
       # the container and on the host see the same files.
+      - ./data:/app/data
+      - ./policy:/app/policy
+    depends_on:
+      db:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    restart: unless-stopped
+
+  ui:
+    build: .
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+      OLLAMA_BASE_URL: http://ollama:11434
+    command:
+      - streamlit
+      - run
+      - src/vantage/ui/app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --server.headless=true
+    ports:
+      # Published on localhost only: the UI has no real login.
+      - "127.0.0.1:8501:8501"
+    volumes:
       - ./data:/app/data
       - ./policy:/app/policy
     depends_on:
