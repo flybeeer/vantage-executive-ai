@@ -46,7 +46,8 @@ what had to be rebuilt.
 | Refusal: uncovered period, model "not found", evidence floor | done |
 | Prompt-injection guard (question screen + redaction of retrieved text) | done |
 | Demo UI: sign in as A or B, chat with a citation panel, audit log page | done |
-| Eval harness → `EVAL.md` | next |
+| Eval harness: golden set, rule-based grading → [`EVAL.md`](EVAL.md) | done |
+| Video + architecture diagram | next |
 
 ## Running it
 
