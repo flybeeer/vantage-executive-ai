@@ -23,7 +23,7 @@ from vantage.policy import engine
 from vantage.retrieval import bm25, retrieve, vector
 from vantage.service import ask
 
-pytestmark = pytest.mark.usefixtures("corpus")
+pytestmark = pytest.mark.usefixtures("corpus", "fake_llm")
 
 # Golden questions plus phrases lifted straight out of the board minutes — the
 # queries most likely to pull an A-only chunk if the filter were missing.

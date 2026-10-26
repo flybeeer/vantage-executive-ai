@@ -74,6 +74,9 @@ def init_schema() -> None:
                 UNIQUE (source, doc_version)
             )
             """)
+        # The SQL table a tabular file was loaded into, so a SQL answer can cite
+        # the file, version and data date of the table it read.
+        conn.execute("ALTER TABLE documents ADD COLUMN IF NOT EXISTS sql_table TEXT")
         conn.execute("""
             CREATE INDEX IF NOT EXISTS documents_workspaces_gin
             ON documents USING gin (workspaces)

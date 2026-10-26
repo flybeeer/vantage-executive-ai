@@ -79,17 +79,20 @@ class Settings(BaseSettings):
     # Cross-encoder relevance floor. Only comparable across queries when a
     # cross-encoder actually ran, so it is ignored unless reranker_type="local".
     min_relevance_score: float | None = None
-    # Floor on the fused RRF score, applied when no cross-encoder ran. Without
-    # this, RERANKER_TYPE=none would silently disable the refusal path.
-    min_fused_score: float | None = 0.016
+    # Cosine floor on the vector leg, applied when no cross-encoder ran: a
+    # chunk the keyword leg did not match must be at least this similar to
+    # count as evidence. Not a floor on the fused RRF score — the top chunk of
+    # any non-empty list scores 1/(rrf_k+1), so an RRF floor never fires.
+    # Model-specific; calibrate against bge-m3 with the eval.
+    min_vector_score: float | None = None
 
     # ---------- Data governance ----------
     policy_path: str = "policy/policy.yaml"
 
-    @field_validator("min_relevance_score", "min_fused_score", mode="before")
+    @field_validator("min_relevance_score", "min_vector_score", mode="before")
     @classmethod
     def _blank_to_none(cls, v):
-        """Treat a blank env var (e.g. `MIN_FUSED_SCORE=`) as unset (None)."""
+        """Treat a blank env var (e.g. `MIN_VECTOR_SCORE=`) as unset (None)."""
         if isinstance(v, str) and v.strip() == "":
             return None
         return v

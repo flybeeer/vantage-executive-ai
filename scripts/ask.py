@@ -26,15 +26,20 @@ def main() -> int:
     parser.add_argument("question")
     parser.add_argument("--user", default="ceo", help="principal id from policy/policy.yaml")
     parser.add_argument("--audit", action="store_true", help="print the latest audit rows too")
+    parser.add_argument("--chunks", action="store_true", help="print the retrieved chunks too")
     args = parser.parse_args()
     sys.stdout.reconfigure(encoding="utf-8")
 
     outcome = ask(args.user, args.question)
     print(f"\n[{outcome.decision}] route={outcome.route}  audit #{outcome.audit_id}")
     print(f"reason: {outcome.reason}")
+    print(
+        f"model={outcome.model}  tokens={outcome.input_tokens}+{outcome.output_tokens}  "
+        f"cost=${outcome.cost_usd:.4f}  latency={outcome.latency_ms} ms"
+    )
     if outcome.message:
         print(f"\n{outcome.message}")
-    for i, chunk in enumerate(outcome.chunks, start=1):
+    for i, chunk in enumerate(outcome.chunks if args.chunks else [], start=1):
         snippet = " ".join(chunk.content.split())[:160]
         print(f"\n[{i}] {chunk.citation}   (score {chunk.score:.4f})\n    {snippet}…")
 

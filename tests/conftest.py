@@ -40,6 +40,55 @@ def fake_embed_texts(texts: list[str]) -> list[list[float]]:
     return out
 
 
+class FakeLLM:
+    """A scripted stand-in for `gateway.complete`, keyed on which prompt is asking.
+
+    Tests set `doc`, `sql` and `sql_answer` to the JSON reply (a dict, or a
+    callable taking the messages) that prompt should get. `calls` records every
+    message list, so a test can assert what the model was — and was not — shown.
+    """
+
+    def __init__(self):
+        self.calls: list[list[dict]] = []
+        self.doc = {"answerable": True, "facts": [{"text": "เอกสารระบุเรื่องนี้", "sources": [1]}]}
+        self.sql = {"answerable": False, "missing": "ไม่มีตารางที่ตอบได้"}
+        self.sql_answer = {"facts": []}
+
+    def prompt_kind(self, messages: list[dict]) -> str:
+        from vantage.generation import prompts
+
+        system = messages[0]["content"]
+        return {
+            prompts.DOCUMENT_SYSTEM: "doc",
+            prompts.SQL_SYSTEM: "sql",
+            prompts.SQL_ANSWER_SYSTEM: "sql_answer",
+        }[system]
+
+    def sent(self, kind: str) -> list[list[dict]]:
+        return [m for m in self.calls if self.prompt_kind(m) == kind]
+
+    def __call__(self, messages, settings=None):
+        import json
+
+        from vantage.llm.gateway import Completion
+
+        self.calls.append(messages)
+        reply = getattr(self, self.prompt_kind(messages))
+        if callable(reply):
+            reply = reply(messages)
+        text = reply if isinstance(reply, str) else json.dumps(reply, ensure_ascii=False)
+        return Completion(
+            text=text, model="claude-sonnet-5-5", input_tokens=1000, output_tokens=200
+        )
+
+
+@pytest.fixture
+def fake_llm(monkeypatch):
+    fake = FakeLLM()
+    monkeypatch.setattr("vantage.llm.gateway.complete", fake)
+    return fake
+
+
 @pytest.fixture(scope="session")
 def pg(tmp_path_factory):
     """A running Postgres + pgvector, with POSTGRES_* pointed at it."""

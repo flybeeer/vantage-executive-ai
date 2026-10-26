@@ -42,14 +42,16 @@ def _upsert_document(conn: psycopg.Connection, spec: FileSpec, pages: int | None
     row = conn.execute(
         """
         INSERT INTO documents
-            (source, doc_version, sha256, workspaces, data_date, page_count, classification)
-        VALUES (%s, %s, %s, %s, %s, %s, %s)
+            (source, doc_version, sha256, workspaces, data_date, page_count, classification,
+             sql_table)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
         ON CONFLICT (source, doc_version) DO UPDATE SET
             sha256         = EXCLUDED.sha256,
             workspaces     = EXCLUDED.workspaces,
             data_date      = EXCLUDED.data_date,
             page_count     = EXCLUDED.page_count,
             classification = EXCLUDED.classification,
+            sql_table      = EXCLUDED.sql_table,
             upload_date    = now()
         RETURNING id
         """,
@@ -61,6 +63,7 @@ def _upsert_document(conn: psycopg.Connection, spec: FileSpec, pages: int | None
             spec.data_date,
             pages,
             spec.classification,
+            spec.table if spec.kind == "tabular" else None,
         ),
     ).fetchone()
     return row[0]

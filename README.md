@@ -41,7 +41,10 @@ what had to be rebuilt.
 | Thai-aware ingestion | done |
 | Hybrid retrieval with the access filter pushed into the query | done |
 | Append-only audit log, written on every exit (incl. denials, errors) | done |
-| SQL route for numeric questions | next |
+| SQL route: text-to-SQL, read-only engine with a table authorizer, row citations | done |
+| Answer format (facts / analysis / limitations), every number checked against its source | done |
+| Refusal: uncovered period, model "not found", evidence floor | done |
+| Prompt-injection guard (question screen + redaction of retrieved text) | done |
 | UI + eval harness | next |
 
 ## Running it
@@ -108,6 +111,35 @@ one.
 of a plan are both ingested and both retrievable. The newest is flagged
 `is_current`, which lets an answer quote the live figure while still being able
 to say that the superseded version said something different.
+
+**The SQL engine enforces access, not the prompt.** The model is only shown
+the schema of tables the user may read, but that is a courtesy, not the
+control: the query runs on a read-only SQLite connection whose authorizer
+refuses to compile any read of a table outside the user's allow-list. A model
+that writes `FROM finance_monthly` for the Academic Director — directly, via a
+CTE, a join or a subquery — gets a compile error, not rows. The tables the
+authorizer saw being read are the ones the answer cites, with the spreadsheet
+rows that fed the figure.
+
+**Numbers are checked, not trusted.** The model answers in JSON — each fact
+with the sources it relies on — and before anything is shown, every number in a
+fact must appear in what that fact cites: the SQL result rows, or the cited
+chunk. A model that totals a column itself or rounds 1,343 to "about 1,400" has
+produced a figure nobody can trace; on the document route that fact is dropped,
+on the SQL route the phrasing is discarded and the result rows are shown as
+they are. What a check removed goes into the audit log.
+
+**Some refusals happen before the model is asked.** "ยอดนักเรียนเดือน ธ.ค.
+2026" is checked against the months the table actually holds (Thai and English
+month names, quarters, CE or Buddhist-Era years) and refused with the gap named
+— the data ends in September — rather than handed to a model that might answer
+with the latest month it can find.
+
+**Injected instructions are removed, not argued with.** The board minutes carry
+an appendix telling the system to reveal finance data to every user. Lines like
+that are redacted from retrieved text before the model sees it, the prompt
+marks sources as untrusted data, and none of it could matter anyway: access is
+decided from `policy.yaml` before the model runs.
 
 **The audit log is append-only in the database**, enforced by a trigger rather
 than by convention — the denied queries are the ones worth keeping, so they

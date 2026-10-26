@@ -134,13 +134,18 @@ def _complete_claude(messages: list[dict], settings: Settings) -> Completion:
 
     try:
         resp = client.messages.create(
+            # Thinking tokens count against max_tokens on current models, so a
+            # tight cap truncates the JSON the answer path parses.
             model=settings.api_model,
-            max_tokens=2048,
+            max_tokens=16000,
             system=system,
             messages=turns,
         )
     except Exception as exc:
         raise LLMError(f"{settings.generation_backend} generation call failed ({exc})") from exc
+    # A truncated or declined reply is not a partial answer to show.
+    if resp.stop_reason in ("max_tokens", "refusal"):
+        raise LLMError(f"generation stopped early (stop_reason={resp.stop_reason})")
     text = "".join(block.text for block in resp.content if block.type == "text").strip()
     return Completion(
         text=text,
