@@ -64,9 +64,9 @@ file                             ver  ws     data date    sha256     stored
 ---------------------------------------------------------------------------
 enrollment_2025_2026.xlsx        v1   A,B    2026-09-30   65845b07   420 rows → enrollment
 finance_monthly.csv              v1   A      2026-09-30   6ed132ec   84 rows → finance_monthly
-board_meeting_2026Q2.pdf         v1   A      2026-06-30   c551c720   3 chunks / 2 pages
+board_meeting_2026Q2.pdf         v1   A      2026-06-30   60bffa96   3 chunks / 2 pages
 strategy_plan_2026.pdf           v1   A,B    2026-01-15   189d7acd   1 chunks / 1 pages
-strategy_plan_2026_v2.pdf        v2   A,B    2026-07-01   b88e4958   1 chunks / 1 pages
+strategy_plan_2026_v2.pdf        v2   A,B    2026-07-01   7c29d7d0   1 chunks / 1 pages
 academic_report_term1.pdf        v1   B      2026-08-31   e18a8e62   1 chunks / 1 pages
 ```
 
