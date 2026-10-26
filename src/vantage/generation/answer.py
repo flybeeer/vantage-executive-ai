@@ -24,6 +24,7 @@ _BE_OFFSET = 543
 _SNIPPET_CHARS = 280
 
 NOT_FOUND = "ไม่พบข้อมูล"
+_MARKER_RE = re.compile(r"\[(\d+)\]")
 
 
 class AnswerFormatError(ValueError):
@@ -63,8 +64,9 @@ class Answer:
 
     @property
     def cited(self) -> list[Citation]:
-        """Citations that some fact actually relies on, in number order."""
+        """Citations a fact relies on or the analysis marks as `[n]`, in number order."""
         used = {n for f in self.facts for n in f.sources}
+        used |= {int(n) for n in _MARKER_RE.findall(self.analysis)}
         return [c for c in self.citations if c.n in used]
 
     def render(self) -> str:
@@ -184,7 +186,8 @@ def ungrounded(text: str, available: set[Decimal]) -> list[str]:
     the same year in the other calendar (2569 ↔ 2026).
     """
     bad = []
-    for written in numbers_in(text):
+    # "[2]" is a citation marker, not the figure 2.
+    for written in numbers_in(_MARKER_RE.sub(" ", text)):
         value = _decimal(written)
         if value is None:
             continue

@@ -122,7 +122,9 @@ class ThaiPdf:
         self.path = path
         self.title = title
         path.parent.mkdir(parents=True, exist_ok=True)
-        self.c = canvas.Canvas(str(path), pagesize=A4)
+        # invariant=1: no creation timestamp or random document id, so the same
+        # content always produces the same bytes — and the same sha256 at ingest.
+        self.c = canvas.Canvas(str(path), pagesize=A4, invariant=1)
         self.c.setTitle(title)
         self.y = PAGE_H - MARGIN
         self._page = 1

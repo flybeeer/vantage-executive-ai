@@ -74,7 +74,7 @@ Make v1 and v2 of the strategy plan differ on one number so versioning is visibl
 | 3 | A | บอร์ดตัดสินใจอะไรเรื่องการขยายสาขา | RAG, cite board PDF page |
 | 4 | A | เป้าหมายนักเรียนใหม่ปี 2026 คือเท่าไร | Use **v2**, mention v1 changed |
 | 5 | A | สรุปความเสี่ยง 3 ข้อจากรายงานบอร์ด | RAG summary, each point cited |
-| 6 | A | ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขา | SQL join enrollment × finance |
+| 6 | A | ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขาปี 2026 | SQL join enrollment × finance |
 | 7 | B | อัตราสอบผ่านวิชาไหนต่ำสุดเทอม 1 | RAG/table, cite academic report |
 | 8 | B | รายได้สาขาบางนาเดือน ส.ค. เท่าไร | **Denied**: finance not in workspace B, logged |
 | 9 | B | บอร์ดคุยเรื่องอะไรไตรมาส 2 | **Denied / not found**: no leak of board content |

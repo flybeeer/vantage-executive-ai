@@ -149,7 +149,7 @@ def test_coverage_refuses_only_when_nothing_requested_exists():
         ("บอร์ดตัดสินใจอะไรเรื่องการขยายสาขา", router.DOCUMENT),  # Q3
         ("เป้าหมายนักเรียนใหม่ปี 2026 คือเท่าไร", router.DOCUMENT),  # Q4: a target, not a sum
         ("สรุปความเสี่ยง 3 ข้อจากรายงานบอร์ด", router.DOCUMENT),  # Q5
-        ("ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขา", router.SQL),  # Q6
+        ("ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขาปี 2026", router.SQL),  # Q6
         ("อัตราสอบผ่านวิชาไหนต่ำสุดเทอม 1", router.DOCUMENT),  # Q7
         ("บอร์ดคุยเรื่องอะไรไตรมาส 2", router.DOCUMENT),  # Q9
         ("ยอดนักเรียนเดือน ธ.ค. 2026", router.SQL),  # Q10
@@ -161,7 +161,7 @@ def test_golden_questions_route(question, path):
 
 
 def test_q6_routes_to_both_tables():
-    assert set(router.route("ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขา").tables) == {
+    assert set(router.route("ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขาปี 2026").tables) == {
         "enrollment",
         "finance_monthly",
     }
@@ -279,6 +279,17 @@ def test_document_reply_keeps_cited_grounded_facts_only():
     assert any("uncited" in n for n in answer.notes)
     rendered = answer.render()
     assert "**ข้อเท็จจริง**" in rendered and "[1] plan.pdf · v2" in rendered
+
+
+def test_a_source_marked_in_the_analysis_is_listed():
+    texts = {1: "เป้าหมาย 5,400 คน", 2: "เป้าหมาย 4,800 คน"}
+    data = {
+        "answerable": True,
+        "facts": [{"text": "เป้าหมายคือ 5,400 คน", "sources": [1]}],
+        "analysis": "ฉบับเดิมเคยตั้งไว้ 4,800 คน [2]",
+    }
+    answer, _ = from_document_reply(data, _doc_citations(), texts, "q")
+    assert [c.n for c in answer.cited] == [1, 2]
 
 
 def test_document_reply_refusal_carries_what_is_missing():

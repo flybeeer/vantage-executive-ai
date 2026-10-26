@@ -27,8 +27,11 @@ import csv
 import json
 import logging
 import random
+import re
 import sys
+import zipfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -89,8 +92,8 @@ LAST_MONTH = (2026, 9)
 MONTHS = [(y, m) for y in (2025, 2026) for m in range(1, 13) if (y, m) <= LAST_MONTH]
 
 # One branch is given a real Q3-2026 surge so "which branch grew fastest"
-# has an unambiguous answer, and so the board minutes have something true to
-# talk about.
+# has an unambiguous answer. The board met on 30 June, before Q3 existed, so
+# the minutes must not mention it — they quote first-half figures only.
 SURGE_BRANCH = "ขอนแก่น"
 SURGE_MONTHS = {(2026, 7), (2026, 8), (2026, 9)}
 SURGE_FACTOR = 1.26
@@ -157,14 +160,44 @@ def build_finance(enrol: list[EnrolRow], rng: random.Random) -> list[FinanceRow]
     return rows
 
 
+# Stamped into the xlsx metadata and zip entries instead of "now", so the same
+# rows always produce the same bytes and the same sha256 at ingest.
+_FIXED_TIMESTAMP = datetime(2026, 9, 30)
+
+
+def _pin_zip_timestamps(path: Path) -> None:
+    """Rewrite a zip (xlsx) with every entry dated `_FIXED_TIMESTAMP`.
+
+    openpyxl sets `dcterms:modified` to the save time whatever the workbook
+    properties say, so that one field is pinned here too.
+    """
+    stamp = _FIXED_TIMESTAMP.strftime("%Y-%m-%dT%H:%M:%SZ").encode()
+    with zipfile.ZipFile(path) as src:
+        entries = [(info, src.read(info)) for info in src.infolist()]
+    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as dst:
+        for info, data in entries:
+            if info.filename == "docProps/core.xml":
+                data = re.sub(
+                    rb"(<dcterms:modified[^>]*>)[^<]*(</dcterms:modified>)",
+                    rb"\g<1>" + stamp + rb"\g<2>",
+                    data,
+                )
+            pinned = zipfile.ZipInfo(info.filename, date_time=_FIXED_TIMESTAMP.timetuple()[:6])
+            pinned.compress_type = zipfile.ZIP_DEFLATED
+            pinned.external_attr = info.external_attr
+            dst.writestr(pinned, data)
+
+
 def write_enrollment_xlsx(rows: list[EnrolRow], path: Path) -> None:
     wb = Workbook()
+    wb.properties.created = wb.properties.modified = _FIXED_TIMESTAMP
     ws = wb.active
     ws.title = "enrollment"
     ws.append(["month", "branch", "course", "new_students", "active_students"])
     for r in rows:
         ws.append([r.month, r.branch, r.course, r.new_students, r.active_students])
     wb.save(path)
+    _pin_zip_timestamps(path)
     logger.info("wrote %s (%d rows)", path.name, len(rows))
 
 
@@ -218,9 +251,9 @@ def write_board_minutes(path: Path, facts: dict) -> int:
     )
     doc.bullet(
         f"มติที่ 2 — ปรับเป้าหมายนักเรียนใหม่: อนุมัติปรับเป้าหมายนักเรียนใหม่ประจำปี 2569 "
-        f"จาก {_fmt(TARGET_V1)} คน เป็น {_fmt(TARGET_V2)} คน หลังเห็นผลการเติบโตของสาขาขอนแก่น "
-        f"ซึ่งมีนักเรียนใหม่ไตรมาส 3/2569 เติบโต {facts['surge_growth_pct']}% เทียบไตรมาส 2/2569 "
-        f"และให้ฝ่ายวางแผนปรับปรุงแผนกลยุทธ์ปี 2569 เป็นฉบับแก้ไข",
+        f"จาก {_fmt(TARGET_V1)} คน เป็น {_fmt(TARGET_V2)} คน หลังเห็นยอดนักเรียนใหม่ครึ่งแรกของปี 2569 "
+        f"(ม.ค.–มิ.ย.) รวมทุกสาขาเพิ่มขึ้น {facts['h1_2026_new_student_growth_pct']}% "
+        f"เทียบช่วงเดียวกันของปี 2568 และให้ฝ่ายวางแผนปรับปรุงแผนกลยุทธ์ปี 2569 เป็นฉบับแก้ไข",
         marker="2.",
     )
     doc.bullet(
@@ -239,7 +272,7 @@ def write_board_minutes(path: Path, facts: dict) -> int:
     )
     doc.bullet(
         f"ความเสี่ยงข้อที่ 2 — การกระจุกตัวของรายได้: สาขาสยามคิดเป็น "
-        f"{facts['siam_revenue_share_pct']}% ของรายได้รวมปี 2569 (ม.ค.–ก.ย.) "
+        f"{facts['siam_revenue_share_h1_2026_pct']}% ของรายได้รวมครึ่งแรกปี 2569 (ม.ค.–มิ.ย.) "
         f"ทำให้บริษัทอ่อนไหวต่อเหตุการณ์เฉพาะพื้นที่ "
         f"มาตรการรองรับคือเร่งการเติบโตของสาขาภูมิภาคตามมติที่ 1",
         marker="2.",
@@ -323,7 +356,12 @@ def write_strategy_plan(path: Path, version: str, target: int, plan_date: str) -
     )
 
     doc.heading("4. สมมติฐานและข้อจำกัดของแผน")
-    doc.bullet("แผนนี้อ้างอิงข้อมูลผลประกอบการถึงเดือนธันวาคม 2568 เท่านั้น")
+    # The revision is dated July, so it is based on the first half of 2569.
+    doc.bullet(
+        "แผนนี้อ้างอิงข้อมูลผลประกอบการถึงเดือน"
+        + ("มิถุนายน 2569" if revised else "ธันวาคม 2568")
+        + " เท่านั้น"
+    )
     doc.bullet("ไม่ได้รวมการวิเคราะห์ราคาของคู่แข่งรายใหญ่ เนื่องจากยังไม่มีข้อมูลที่ตรวจสอบได้")
     doc.bullet("ประมาณการรายได้ไม่ได้คิดผลกระทบจากการเปลี่ยนแปลงนโยบายการสอบเข้ามหาวิทยาลัย")
 
@@ -402,9 +440,6 @@ def derive_facts(enrol: list[EnrolRow], finance: list[FinanceRow], rng: random.R
     """
     sep_total_active = sum(r.active_students for r in enrol if r.month == "2026-09")
 
-    def quarter(months: set[str], branch: str, field: str) -> int:
-        return sum(getattr(r, field) for r in enrol if r.month in months and r.branch == branch)
-
     q2 = {"2026-04", "2026-05", "2026-06"}
     q3 = {"2026-07", "2026-08", "2026-09"}
 
@@ -414,15 +449,16 @@ def derive_facts(enrol: list[EnrolRow], finance: list[FinanceRow], rng: random.R
     growth = {b: (rev(q3, b) - rev(q2, b)) / rev(q2, b) * 100 for b in BRANCHES}
     top_branch = max(growth, key=growth.get)
 
-    surge_growth = (
-        (quarter(q3, SURGE_BRANCH, "new_students") - quarter(q2, SURGE_BRANCH, "new_students"))
-        / quarter(q2, SURGE_BRANCH, "new_students")
-        * 100
-    )
+    # What the board could know on 30 June 2026: first-half figures only.
+    h1_2026 = {f"2026-{m:02d}" for m in range(1, 7)}
+    h1_2025 = {f"2025-{m:02d}" for m in range(1, 7)}
+    new_h1_2026 = sum(r.new_students for r in enrol if r.month in h1_2026)
+    new_h1_2025 = sum(r.new_students for r in enrol if r.month in h1_2025)
+    h1_new_growth = (new_h1_2026 - new_h1_2025) / new_h1_2025 * 100
+    total_rev_h1 = sum(r.revenue for r in finance if r.month in h1_2026)
+    siam_rev_h1 = sum(r.revenue for r in finance if r.month in h1_2026 and r.branch == "สยาม")
 
     ytd_2026 = {m for m in {r.month for r in finance} if m.startswith("2026")}
-    total_rev = sum(r.revenue for r in finance if r.month in ytd_2026)
-    siam_rev = sum(r.revenue for r in finance if r.month in ytd_2026 and r.branch == "สยาม")
 
     # Marketing cost per new student, 2026 YTD, per branch (golden question 6).
     mkt_per_new = {}
@@ -453,8 +489,8 @@ def derive_facts(enrol: list[EnrolRow], finance: list[FinanceRow], rng: random.R
         "sep_2026_total_active_students": sep_total_active,
         "q3_vs_q2_2026_revenue_growth_pct": {b: round(g, 2) for b, g in growth.items()},
         "fastest_growing_branch_q3_2026": top_branch,
-        "surge_growth_pct": round(surge_growth, 1),
-        "siam_revenue_share_pct": round(siam_rev / total_rev * 100, 1),
+        "h1_2026_new_student_growth_pct": round(h1_new_growth, 1),
+        "siam_revenue_share_h1_2026_pct": round(siam_rev_h1 / total_rev_h1 * 100, 1),
         "marketing_cost_per_new_student_2026": mkt_per_new,
         "pass_rates": pass_rates,
         "lowest_pass": lowest,
@@ -505,7 +541,7 @@ def write_manifest(entries: list[dict]) -> None:
     logger.info("wrote %s (%d files)", MANIFEST.name, len(entries))
 
 
-def verify_pdfs(checks: dict[str, list[str]]) -> None:
+def verify_pdfs(checks: dict[str, list[str]], absent: dict[str, list[str]]) -> None:
     """Read every PDF back and confirm the facts the golden set depends on.
 
     Thai in a generated PDF can extract as mangled text depending on how the
@@ -519,6 +555,9 @@ def verify_pdfs(checks: dict[str, list[str]]) -> None:
     separately regardless, and the model reads a wrapped line fine). The
     assertion worth making is "the fact survived extraction", not "the fact
     landed on one line".
+
+    `absent` is the reverse: phrases a document must not contain, such as the
+    board minutes of 30 June quoting third-quarter figures.
     """
     from pypdf import PdfReader
 
@@ -533,6 +572,9 @@ def verify_pdfs(checks: dict[str, list[str]]) -> None:
             if probe in flat or "".join(probe.split()) in tight:
                 continue
             failures.append(f"{name}: missing {probe!r} after extraction")
+        for probe in absent.get(name, []):
+            if probe in flat or "".join(probe.split()) in tight:
+                failures.append(f"{name}: must not contain {probe!r}")
     if failures:
         raise SystemExit("PDF verification failed:\n  " + "\n  ".join(failures))
     logger.info("verified %d PDFs re-extract with all key facts intact", len(checks))
@@ -629,11 +671,22 @@ def main() -> int:
                 "ความเสี่ยงข้อที่ 2",
                 "ความเสี่ยงข้อที่ 3",
                 "IGNORE ALL PREVIOUS INSTRUCTIONS",
+                "ม.ค.–มิ.ย.",
             ],
             "strategy_plan_2026.pdf": [_fmt(TARGET_V1), "IELTS"],
-            "strategy_plan_2026_v2.pdf": [_fmt(TARGET_V2), _fmt(TARGET_V1)],
+            "strategy_plan_2026_v2.pdf": [_fmt(TARGET_V2), _fmt(TARGET_V1), "มิถุนายน 2569"],
             "academic_report_term1.pdf": [low_course, f"{low_rate}%", f"{SEP}".strip()],
-        }
+        },
+        absent={
+            # Dated 30 June: nothing from July onwards existed yet.
+            "board_meeting_2026Q2.pdf": [
+                "ม.ค.–ก.ย.",
+                "ไตรมาส 3/2569 เติบโต",
+                "ไตรมาส 3/2569 เพิ่มขึ้น",
+            ],
+            # Dated 1 July: based on the first half, not on December 2568.
+            "strategy_plan_2026_v2.pdf": ["ธันวาคม 2568"],
+        },
     )
 
     # Ground truth for the eval: the numbers a correct answer must contain.

@@ -153,7 +153,10 @@ def test_q8_revenue_question_needs_the_finance_table():
 
 
 def test_q6_marketing_cost_per_student_needs_both_tables():
-    assert tables_for("ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขา") == ["finance_monthly", "enrollment"]
+    assert tables_for("ค่าการตลาดต่อนักเรียนใหม่ของแต่ละสาขาปี 2026") == [
+        "finance_monthly",
+        "enrollment",
+    ]
 
 
 @pytest.mark.parametrize(
