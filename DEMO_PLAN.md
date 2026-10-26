@@ -36,7 +36,7 @@ Numbers come from SQL, never from the LLM.
 - [ ] Append-only audit log: user, workspace, time, question, retrieved chunk ids, SQL run, answer, token cost
 - [ ] Simple UI (Streamlit): login as user A or B, chat, citation panel, audit log page
 - [ ] Eval script running the 12 test questions → writes `EVAL.md` table
-- [ ] README with architecture diagram, how to run (docker compose), and an honest "what this is / isn't" note
+- [x] README with architecture diagram, how to run (docker compose), and an honest "what this is / isn't" note
 
 ### Won't do (cut if tempted)
 - Sub-agents, DOCX/XLSX export, media transcription

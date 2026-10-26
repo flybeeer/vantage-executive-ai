@@ -26,10 +26,90 @@ And one rule underneath all three: **numbers come from SQL, never from the
 model.** Spreadsheets are loaded into typed SQL tables and queried; the model
 phrases the result and the query itself is part of the citation.
 
+## Architecture
+
+### The answer path
+
+One question in, one audited outcome out (`src/vantage/service.py`). Access is
+decided before anything is read; the model only ever sees what the user is
+allowed to see, and a rule — not the model — has the last word on every number.
+
+```mermaid
+flowchart TD
+    Q["Question + signed-in user"] --> P["Resolve principal<br/>policy.yaml · unknown user → deny"]
+    P --> I{"Injection screen<br/>on the question"}
+    I -- "tries to change rules or access" --> DENY
+    I --> T{"Needs a table the<br/>user may not read?"}
+    T -- yes --> DENY
+    T -- no --> R{"Router"}
+
+    R -- "figures from a spreadsheet" --> C{"Coverage: are the<br/>asked-for months in the table?"}
+    C -- no --> REFUSE
+    C -- yes --> S1["Model writes one SELECT<br/>sees only allowed tables' schema"]
+    S1 --> S2["SQLite, read-only connection<br/>authorizer rejects any other table"]
+    S2 --> S3["Model phrases the result rows"]
+    S3 --> G
+
+    R -- "documents" --> V["Hybrid retrieval<br/>pgvector + Thai-segmented FTS, fused by RRF<br/>access filter inside the WHERE clause"]
+    V --> E{"Any evidence?"}
+    E -- no --> REFUSE
+    E -- yes --> X["Redact instruction-like lines<br/>from the retrieved text"]
+    X --> L["Model answers in JSON<br/>each fact lists its sources"]
+    L -- "says not found" --> REFUSE
+    L --> G{"Every number in a fact<br/>appears in what it cites?"}
+    G -- "SQL: no → show the rows as they are<br/>documents: no → drop the fact" --> ALLOW
+
+    G -- yes --> ALLOW
+
+    subgraph OUT["Outcome"]
+        DENY["denied<br/>nothing read"]
+        REFUSE["refused<br/>ไม่พบข้อมูล + what is missing"]
+        ALLOW["allowed<br/>facts · analysis · limitations<br/>file · version · page or rows · data date"]
+    end
+
+    OUT -. "every exit, incl. errors" .-> AUD[("audit_log<br/>append-only, trigger-enforced")]
+```
+
+### What runs where
+
+```mermaid
+flowchart LR
+    subgraph LOCAL["On your machine / your network"]
+        F["Corpus<br/>PDF · XLSX · CSV<br/>manifest: version, workspaces, data date"]
+        F -- "PDFs: per page → chunks<br/>PyThaiNLP segmentation" --> EMB["Ollama · bge-m3<br/>embeddings"]
+        EMB --> PG[("Postgres + pgvector<br/>documents · chunks · audit_log")]
+        F -- "spreadsheets: typed tables" --> KB[("SQLite knowledge base<br/>row-level citations")]
+        POL["policy.yaml<br/>in git, deny-by-default"]
+        APP["Vantage service<br/>Streamlit UI · CLI · API"]
+        APP --- PG
+        APP --- KB
+        APP --- POL
+    end
+    APP -- "question + permitted, redacted excerpts<br/>or schema + result rows" --> LLM["Claude API<br/>or Ollama to stay fully on-premise"]
+```
+
+Documents are embedded locally and never leave the machine in bulk. What goes
+to the generation model per question is the question itself and the excerpts
+or SQL result rows the user was already allowed to see. Set
+`GENERATION_BACKEND=ollama` and nothing leaves at all.
+
+### Where to look
+
+| | |
+|---|---|
+| `policy/policy.yaml`, `src/vantage/policy/` | who may read what; `allowed_filter()` and `authorize()` |
+| `src/vantage/ingestion/` | provenance rows, page-preserving chunking, Thai segmentation, typed tables |
+| `src/vantage/retrieval/` | vector + FTS legs with the access filter inside the query, RRF fusion |
+| `src/vantage/sqlkb/` | coverage check, `SELECT`-only guard, read-only executor with table authorizer |
+| `src/vantage/generation/` | answer contract, number grounding, injection guard, citations |
+| `src/vantage/observability/audit.py` | the audit log |
+| `src/vantage/eval/`, `eval/golden.yaml` | the golden set and its grading rules |
+
 ## Status
 
-Work in progress. See `DEMO_PLAN.md` for the plan and `REUSE_FROM_SOURCERER.md`
-for what was carried over from an earlier project of mine
+The demo is complete end to end; the walkthrough video is next. See
+`DEMO_PLAN.md` for the plan and `REUSE_FROM_SOURCERER.md` for what was carried
+over from an earlier project of mine
 ([Sourcerer](https://github.com/flybeeer/Sourcerer), a hybrid-RAG assistant) and
 what had to be rebuilt.
 
@@ -47,18 +127,41 @@ what had to be rebuilt.
 | Prompt-injection guard (question screen + redaction of retrieved text) | done |
 | Demo UI: sign in as A or B, chat with a citation panel, audit log page | done |
 | Eval harness: golden set, rule-based grading → [`EVAL.md`](EVAL.md) | done |
-| Video + architecture diagram | next |
+| Architecture diagram | done |
+| Walkthrough video | next |
+
+## Evaluation
+
+The 12 demo questions in `DEMO_PLAN.md` §5, each asked 3 times through the same
+path the UI uses, graded by plain rules rather than a second model. Full
+results, method and limits in [`EVAL.md`](EVAL.md).
+
+| Metric | Result |
+|---|---|
+| Answer correctness | 7/7 |
+| Citation accuracy (right file, version and rows) | 7/7 |
+| Correct refusal | 2/2 |
+| Access isolation (incl. policy file unchanged) | 4/4 |
+| Latency | p50 6.1 s · max 19.2 s |
+| Cost | $0.016 per question (Claude Sonnet 5.5, list price) |
+
+A question counts only if it passed in all three runs. Twelve questions over
+six synthetic files show the mechanisms work; they are not a measure of
+retrieval quality at scale.
 
 ## Running it
 
 ```bash
-cp .env.example .env          # set ANTHROPIC_API_KEY if using the API backend
+cp .env.example .env          # set ANTHROPIC_API_KEY (or GENERATION_BACKEND=ollama)
 docker compose up -d
 docker compose exec ollama ollama pull bge-m3   # embeddings, once
-make ingest
+docker compose exec api python scripts/ingest.py
 ```
 
-`make ingest` prints what it loaded, with the hash and provenance of each file:
+With a local Python environment (`make install`), `make ingest` does the same
+from the host.
+
+Ingest prints what it loaded, with the hash and provenance of each file:
 
 ```
 file                             ver  ws     data date    sha256     stored
