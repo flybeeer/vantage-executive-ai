@@ -78,9 +78,13 @@ class Answer:
         if self.limitations:
             parts += ["", "**ข้อจำกัด**", *(f"- {item}" for item in self.limitations)]
         parts += ["", "**แหล่งอ้างอิง**"]
+        shown_sql: set[str] = set()
         for c in self.cited:
             parts.append(f"[{c.n}] {c.label}")
-            if c.sql:
+        # One query reading two tables is one query: print it once, after its tables.
+        for c in self.cited:
+            if c.sql and c.sql not in shown_sql:
+                shown_sql.add(c.sql)
                 parts.append(f"    SQL: {c.sql}")
         return "\n".join(parts)
 
