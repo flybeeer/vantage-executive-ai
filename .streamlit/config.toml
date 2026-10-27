@@ -4,6 +4,10 @@
 # No usage telemetry: this is a "private AI" demo, and the UI should not phone home.
 gatherUsageStats = false
 
+[client]
+# Hide Streamlit's own "Deploy" button and developer menu; they are not part of the demo.
+toolbarMode = "minimal"
+
 [theme]
 # Streamlit's default accent is red, which makes every selected filter look
 # like an error next to the red "denied" badge.
