@@ -142,7 +142,7 @@ results, method and limits in [`EVAL.md`](EVAL.md).
 | Citation accuracy (right file, version and rows) | 7/7 |
 | Correct refusal | 2/2 |
 | Access isolation (incl. policy file unchanged) | 4/4 |
-| Latency | p50 6.1 s · max 19.2 s |
+| Latency | p50 7.4 s · max 87.7 s (one outlier; next slowest 19.3 s) |
 | Cost | $0.016 per question (Claude Sonnet 5.5, list price) |
 
 A question counts only if it passed in all three runs. Twelve questions over

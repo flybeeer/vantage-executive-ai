@@ -57,7 +57,8 @@ def _commit() -> str:
         ).stdout.strip()
 
     sha = git("rev-parse", "--short", "HEAD") or "unknown"
-    return sha + ("-dirty" if git("status", "--porcelain") else "")
+    # Untracked files (notes, editor folders) cannot change what ran.
+    return sha + ("-dirty" if git("status", "--porcelain", "--untracked-files=no") else "")
 
 
 def _ask(user: str, question: str) -> Outcome:
