@@ -169,6 +169,36 @@ def test_an_aggregate_over_no_rows_is_not_found_not_a_fact(fake_llm):
     assert fake_llm.sent("sql_answer") == []
 
 
+# ---------- English questions get English answers ----------
+
+
+def test_an_english_question_gets_an_english_answer_and_citation(fake_llm):
+    _q1_plan(fake_llm)
+    fake_llm.sql_answer = {"facts": [{"text": "1,343 students were enrolled in September 2026."}]}
+
+    outcome = ask("ceo", "How many students were enrolled in September 2026?")
+
+    assert outcome.decision == audit.ALLOWED
+    assert outcome.message.startswith("**Facts**")
+    assert (
+        "enrollment_2025_2026.xlsx · v1 · rows 402–421 · data as of 2026-09-30" in outcome.message
+    )
+    assert "Answer language: English" in fake_llm.sent("sql")[0][1]["content"]
+    assert "Answer language: English" in fake_llm.sent("sql_answer")[0][1]["content"]
+
+
+def test_english_refusal_and_denial_are_in_english(fake_llm):
+    refused = ask("ceo", "Student numbers for December 2026")
+    assert refused.message == (
+        "No data found — the enrollment table only covers 2025-01 to 2026-09, "
+        "but the question asks about 2026-12"
+    )
+    denied = ask("academic_director", "What was Bang Na's revenue in August?")
+    assert denied.decision == audit.DENIED
+    assert denied.message.startswith("You do not have access to the data this question needs")
+    assert fake_llm.calls == []
+
+
 # ---------- Q11: not in the data ----------
 
 

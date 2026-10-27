@@ -15,6 +15,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from vantage.generation.language import TH, text
+
 # Selected by both legs, in this order, and turned into a chunk by `from_row`.
 # Joining `documents` is what makes the access predicate possible at all: the
 # workspace tags live on the document, not denormalised onto every chunk.
@@ -43,16 +45,22 @@ class RetrievedChunk:
     @property
     def citation(self) -> str:
         """`board_meeting_2026Q2.pdf · v1 · หน้า 1 · ข้อมูล ณ 2026-06-30`."""
+        return self.label(TH)
+
+    def label(self, lang: str) -> str:
+        """The citation in the answer's language (`· p. 1 · data as of …` in English)."""
         parts = [self.source, self.doc_version]
         if self.page is not None:
-            parts.append(f"หน้า {self.page}")
+            parts.append(text("page", lang, page=self.page))
         if self.row_ref:
-            parts.append(f"แถว {self.row_ref}")
+            parts.append(text("rows", lang, rows=self.row_ref))
         parts.append(
-            f"ข้อมูล ณ {self.data_date.isoformat()}" if self.data_date else "ไม่ระบุวันที่ข้อมูล"
+            text("data_as_of", lang, date=self.data_date.isoformat())
+            if self.data_date
+            else text("no_data_date", lang)
         )
         if not self.is_current:
-            parts.append("ฉบับเก่า")
+            parts.append(text("superseded", lang))
         return " · ".join(parts)
 
     def audit_ref(self) -> dict:

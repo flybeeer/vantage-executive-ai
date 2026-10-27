@@ -185,6 +185,8 @@ def test_golden_questions_route(question, path):
         ("รายได้เดือนธันวาคมปีนี้", router.SQL),
         ("ขอดูรายได้สาขาบางนาหน่อย", router.SQL),
         ("which branch had the most students in September", router.SQL),
+        ("Student numbers for December 2026", router.SQL),  # a dated period
+        ("How many students enrolled last term?", router.SQL),
         # Still documents: a target, or a subject with nothing to count.
         ("เป้านักเรียนใหม่ตอนนี้กี่คน แล้วเดิมตั้งไว้เท่าไร", router.DOCUMENT),
         ("นักเรียนบ่นเรื่องอะไรบ้าง", router.DOCUMENT),

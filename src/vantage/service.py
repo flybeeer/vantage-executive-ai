@@ -11,6 +11,9 @@ Every exit writes exactly one audit row — unknown user, injection, denied
 table, refusal, answer, or a crash part-way through. The denials and refusals
 are the rows most worth keeping, so they are not a special case.
 
+The answer — and every refusal or denial — is in the language of the
+question (`generation.language`).
+
 Decisions:
 - `denied`  — the policy (or the injection screen) refused; nothing was read.
 - `refused` — access was fine but the evidence was not there; the user is told
@@ -25,7 +28,7 @@ import time
 from dataclasses import dataclass, field
 
 from vantage.config import Settings, get_settings
-from vantage.generation import guardrails
+from vantage.generation import guardrails, language
 from vantage.generation.answer import Answer, not_found
 from vantage.generation.generator import answer_documents
 from vantage.llm.gateway import Completion
@@ -42,14 +45,9 @@ logger = logging.getLogger(__name__)
 DOCUMENT_ROUTE = router.DOCUMENT
 SQL_ROUTE = router.SQL
 
-# What a denied user is told. Says *that* they were refused and that it was
-# logged, never what the refused asset contains.
-_DENIED_MESSAGE = "ไม่มีสิทธิ์เข้าถึงข้อมูลที่คำถามนี้ต้องใช้ ({assets}) — คำขอนี้ถูกบันทึกไว้แล้ว"
-_UNKNOWN_USER_MESSAGE = "ไม่พบผู้ใช้นี้ในระบบ — คำขอนี้ถูกบันทึกไว้แล้ว"
-_INJECTION_MESSAGE = (
-    "คำถามนี้มีข้อความที่สั่งให้ระบบเปลี่ยนกฎหรือสิทธิ์การเข้าถึง จึงไม่ได้ดำเนินการ — "
-    "คำขอนี้ถูกบันทึกไว้แล้ว"
-)
+# What a denied user is told (`language` keys denied / unknown_user /
+# injection) says *that* they were refused and that it was logged, never what
+# the refused asset contains.
 
 
 @dataclass(frozen=True)
@@ -108,6 +106,7 @@ def ask(user_id: str, question: str, settings: Settings | None = None) -> Outcom
     """Answer `question` as `user_id`, writing one audit row whatever happens."""
     settings = settings or get_settings()
     start = time.perf_counter()
+    lang = language.of(question)
 
     principal = resolve_principal(user_id)
     if principal is None:
@@ -117,7 +116,7 @@ def ask(user_id: str, question: str, settings: Settings | None = None) -> Outcom
             question=question,
             decision=audit.DENIED,
             decision_reason=f"deny-by-default: unknown principal {user_id!r}",
-            answer=_UNKNOWN_USER_MESSAGE,
+            answer=language.text("unknown_user", lang),
         )
         return _finish(start, entry)
 
@@ -137,14 +136,18 @@ def ask(user_id: str, question: str, settings: Settings | None = None) -> Outcom
         if injected:
             return _finish(
                 start,
-                entry(audit.DENIED, f"injection screen: {injected}", answer=_INJECTION_MESSAGE),
+                entry(
+                    audit.DENIED,
+                    f"injection screen: {injected}",
+                    answer=language.text("injection", lang),
+                ),
             )
 
     # A question about data this principal cannot read is denied before any
     # retrieval runs, and the denial names the asset in the audit log.
     denied = {t: d for t, d in check_tables(principal, question).items() if not d.allowed}
     if denied:
-        message = _DENIED_MESSAGE.format(assets=", ".join(denied))
+        message = language.text("denied", lang, assets=", ".join(denied))
         reason = "; ".join(d.reason for d in denied.values())
         return _finish(start, entry(audit.DENIED, reason, SQL_ROUTE, answer=message))
 
@@ -152,12 +155,12 @@ def ask(user_id: str, question: str, settings: Settings | None = None) -> Outcom
     calls: list[Completion] = []
     try:
         if chosen.path == SQL_ROUTE:
-            result = answer_sql(question, principal, chosen.tables, settings)
+            result = answer_sql(question, principal, chosen.tables, settings, lang)
             calls = result.calls
             reason = "; ".join([f"route: {chosen.reason}", *result.notes])
             usage = _usage(calls)
             if result.refused:
-                message = not_found(result.missing)
+                message = not_found(result.missing, lang)
                 return _finish(
                     start,
                     entry(
@@ -188,7 +191,7 @@ def ask(user_id: str, question: str, settings: Settings | None = None) -> Outcom
         notes += retrieval.notes
         retrieved = [c.audit_ref() for c in retrieval.chunks]
 
-        result = answer_documents(question, retrieval.chunks, settings)
+        result = answer_documents(question, retrieval.chunks, settings, lang)
         calls = result.calls
         reason = "; ".join(notes + result.notes)
         usage = _usage(calls)
@@ -200,7 +203,7 @@ def ask(user_id: str, question: str, settings: Settings | None = None) -> Outcom
                     reason,
                     DOCUMENT_ROUTE,
                     retrieved=retrieved,
-                    answer=not_found(result.missing),
+                    answer=not_found(result.missing, lang),
                     **usage,
                 ),
                 chunks=retrieval.chunks,

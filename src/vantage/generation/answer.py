@@ -20,10 +20,13 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal, InvalidOperation
 
+from vantage.generation.language import TH
+from vantage.generation.language import text as _t
+
 _BE_OFFSET = 543
 _SNIPPET_CHARS = 280
 
-NOT_FOUND = "ไม่พบข้อมูล"
+NOT_FOUND = _t("not_found", TH)
 _MARKER_RE = re.compile(r"\[(\d+)\]")
 
 
@@ -61,6 +64,7 @@ class Answer:
     limitations: list[str]
     citations: list[Citation]
     notes: list[str] = field(default_factory=list)
+    lang: str = TH
 
     @property
     def cited(self) -> list[Citation]:
@@ -70,22 +74,23 @@ class Answer:
         return [c for c in self.citations if c.n in used]
 
     def render(self, *, sources: bool = True) -> str:
-        """The user-facing Thai answer (Markdown).
+        """The user-facing answer (Markdown), in the language of the question.
 
         `sources=False` leaves out the reference list, for a UI that shows the
         citations in a panel of its own.
         """
-        parts = ["**ข้อเท็จจริง**"]
+        parts = [f"**{_t('facts', self.lang)}**"]
         for fact in self.facts:
             marks = "".join(f"[{n}]" for n in fact.sources)
             parts.append(f"- {fact.text} {marks}".rstrip())
         if self.analysis:
-            parts += ["", "**บทวิเคราะห์**", self.analysis]
+            parts += ["", f"**{_t('analysis', self.lang)}**", self.analysis]
         if self.limitations:
-            parts += ["", "**ข้อจำกัด**", *(f"- {item}" for item in self.limitations)]
+            parts += ["", f"**{_t('limitations', self.lang)}**"]
+            parts += [f"- {item}" for item in self.limitations]
         if not sources:
             return "\n".join(parts)
-        parts += ["", "**แหล่งอ้างอิง**"]
+        parts += ["", f"**{_t('sources', self.lang)}**"]
         shown_sql: set[str] = set()
         for c in self.cited:
             parts.append(f"[{c.n}] {c.label}")
@@ -97,10 +102,10 @@ class Answer:
         return "\n".join(parts)
 
 
-def not_found(missing: str) -> str:
+def not_found(missing: str, lang: str = TH) -> str:
     """The refusal text: says *that* nothing was found and *what* is missing."""
-    missing = missing.strip()
-    return f"{NOT_FOUND} — {missing}" if missing else NOT_FOUND
+    missing, head = missing.strip(), _t("not_found", lang)
+    return f"{head} — {missing}" if missing else head
 
 
 def snippet(text: str) -> str:
@@ -108,7 +113,7 @@ def snippet(text: str) -> str:
     return flat if len(flat) <= _SNIPPET_CHARS else flat[:_SNIPPET_CHARS] + "…"
 
 
-def compress_rows(rows: list[int], max_ranges: int = 8) -> str:
+def compress_rows(rows: list[int], max_ranges: int = 8, lang: str = TH) -> str:
     """[402, 403, …, 421, 430] → "402–421, 430"."""
     ordered = sorted(set(rows))
     if not ordered:
@@ -123,7 +128,7 @@ def compress_rows(rows: list[int], max_ranges: int = 8) -> str:
     ranges.append((start, prev))
     text = ", ".join(f"{a}–{b}" if a != b else str(a) for a, b in ranges[:max_ranges])
     if len(ranges) > max_ranges:
-        text += f" … (รวม {len(ordered)} แถว)"
+        text += _t("rows_total", lang, n=len(ordered))
     return text
 
 
@@ -212,12 +217,16 @@ def ungrounded(text: str, available: set[Decimal]) -> list[str]:
 
 
 def from_document_reply(
-    data: dict, citations: list[Citation], source_texts: dict[int, str], question: str
+    data: dict,
+    citations: list[Citation],
+    source_texts: dict[int, str],
+    question: str,
+    lang: str = TH,
 ) -> tuple[Answer | None, str]:
     """Build a document answer. Returns `(answer, missing)`; answer is None on refusal."""
     missing = _str(data.get("missing"))
     if data.get("answerable") is False:
-        return None, missing or "เอกสารที่มีสิทธิ์เข้าถึงไม่มีข้อมูลที่ตอบคำถามนี้"
+        return None, missing or _t("doc_unanswerable", lang)
 
     valid = {c.n for c in citations}
     q_values = _values([question])
@@ -241,14 +250,15 @@ def from_document_reply(
         facts.append(Fact(text, sources))
 
     if not facts:
-        return None, missing or "ไม่มีข้อเท็จจริงที่ตรวจสอบกับเอกสารต้นทางได้"
+        return None, missing or _t("doc_no_facts", lang)
 
     analysis = _str(data.get("analysis"))
     bad = ungrounded(analysis, _values(list(source_texts.values())) | q_values)
     if bad:
         notes.append(f"dropped analysis with number(s) {bad} not in any source")
         analysis = ""
-    answer = Answer(facts, analysis, _str_list(data.get("limitations")), citations, notes)
+    limitations = _str_list(data.get("limitations"))
+    answer = Answer(facts, analysis, limitations, citations, notes, lang)
     return answer, ""
 
 
@@ -268,6 +278,7 @@ def from_sql_reply(
     rows: list[tuple],
     question: str,
     limitations: list[str],
+    lang: str = TH,
 ) -> Answer:
     """Build a SQL answer. Numbers must come from `rows`; otherwise show the rows."""
     every = tuple(c.n for c in citations)
@@ -299,4 +310,4 @@ def from_sql_reply(
     if not facts:
         # The rows themselves are the answer — every number is SQL's.
         facts = [Fact(_row_text(columns, row), every) for row in rows]
-    return Answer(facts, analysis, limitations + extra, citations, notes)
+    return Answer(facts, analysis, limitations + extra, citations, notes, lang)

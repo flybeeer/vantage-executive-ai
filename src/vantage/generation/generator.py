@@ -20,6 +20,7 @@ from vantage.generation.answer import (
     parse_json,
     snippet,
 )
+from vantage.generation.language import TH, text
 from vantage.llm import gateway
 from vantage.llm.gateway import Completion
 from vantage.retrieval.types import RetrievedChunk
@@ -37,10 +38,10 @@ class DocumentOutcome:
         return self.answer is None
 
 
-def _citation(n: int, chunk: RetrievedChunk) -> Citation:
+def _citation(n: int, chunk: RetrievedChunk, lang: str) -> Citation:
     return Citation(
         n=n,
-        label=chunk.citation,
+        label=chunk.label(lang),
         source=chunk.source,
         doc_version=chunk.doc_version,
         data_date=chunk.data_date,
@@ -53,14 +54,14 @@ def _citation(n: int, chunk: RetrievedChunk) -> Citation:
 
 
 def answer_documents(
-    question: str, chunks: list[RetrievedChunk], settings: Settings
+    question: str, chunks: list[RetrievedChunk], settings: Settings, lang: str = TH
 ) -> DocumentOutcome:
     outcome = DocumentOutcome()
 
     ok, why = guardrails.has_evidence(chunks, settings)
     outcome.notes.append(f"evidence: {why}")
     if not ok:
-        outcome.missing = "ไม่พบเอกสารที่เกี่ยวข้องกับคำถามนี้ในขอบเขตที่มีสิทธิ์เข้าถึง"
+        outcome.missing = text("doc_no_evidence", lang)
         return outcome
 
     redaction = guardrails.redact(chunks) if settings.enable_injection_check else None
@@ -68,21 +69,21 @@ def answer_documents(
     if redaction:
         outcome.notes += redaction.notes
 
-    citations = [_citation(n, c) for n, c in enumerate(shown, start=1)]
+    citations = [_citation(n, c, lang) for n, c in enumerate(shown, start=1)]
     # What each source number may be checked against: the header the model saw
     # (file, version, page, data date) and the redacted text.
     source_texts = {n: f"{c.citation}\n{c.content}" for n, c in enumerate(shown, start=1)}
 
-    reply = gateway.complete(prompts.document_messages(question, shown), settings)
+    reply = gateway.complete(prompts.document_messages(question, shown, lang), settings)
     outcome.calls.append(reply)
     try:
         data = parse_json(reply.text)
     except AnswerFormatError as exc:
         outcome.notes.append(f"generation: {exc}")
-        outcome.missing = "ระบบไม่สามารถสรุปคำตอบที่ตรวจสอบได้จากเอกสาร"
+        outcome.missing = text("doc_unparsed", lang)
         return outcome
 
-    answer, missing = from_document_reply(data, citations, source_texts, question)
+    answer, missing = from_document_reply(data, citations, source_texts, question, lang)
     if answer is None:
         outcome.missing = missing
         outcome.notes.append("model reported the sources do not answer the question")

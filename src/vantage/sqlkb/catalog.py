@@ -30,6 +30,7 @@ TABLE_SUBJECTS: dict[str, tuple[str, ...]] = {
         "กำไร",
         "การเงิน",
         "revenue",
+        "sales",
         "cost",
         "marketing spend",
         "profit",
@@ -39,9 +40,8 @@ TABLE_SUBJECTS: dict[str, tuple[str, ...]] = {
         "นักเรียน",
         "ลงทะเบียน",
         "ผู้เรียน",
-        "enrollment",
-        "enrolment",
-        "students",
+        "enrol",  # enrolled, enrollment, enrolment
+        "student",  # and students
     ),
 }
 

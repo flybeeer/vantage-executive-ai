@@ -28,6 +28,7 @@ from vantage.generation.answer import (
     from_sql_reply,
     parse_json,
 )
+from vantage.generation.language import TH, text
 from vantage.llm import gateway
 from vantage.llm.gateway import Completion
 from vantage.policy import Principal, authorize, describe_table
@@ -59,7 +60,9 @@ def readable_tables(principal: Principal, settings: Settings) -> list[str]:
     ]
 
 
-def _table_citations(tables: list[str], evidence: dict[str, list[int]], sql: str) -> list[Citation]:
+def _table_citations(
+    tables: list[str], evidence: dict[str, list[int]], sql: str, lang: str
+) -> list[Citation]:
     """One citation per table read, with its file, version, rows and data date."""
     with connect() as conn:
         found = conn.execute(
@@ -75,9 +78,17 @@ def _table_citations(tables: list[str], evidence: dict[str, list[int]], sql: str
     citations = []
     for n, table in enumerate(tables, start=1):
         source, version, data_date = by_table.get(table, (f"table {table}", "?", None))
-        rows = compress_rows(evidence.get(table, []))
-        parts = [source, version, f"แถว {rows}" if rows else "แถว: ไม่ระบุ"]
-        parts.append(f"ข้อมูล ณ {data_date.isoformat()}" if data_date else "ไม่ระบุวันที่ข้อมูล")
+        rows = compress_rows(evidence.get(table, []), lang=lang)
+        parts = [
+            source,
+            version,
+            text("rows", lang, rows=rows) if rows else text("rows_unknown", lang),
+        ]
+        parts.append(
+            text("data_as_of", lang, date=data_date.isoformat())
+            if data_date
+            else text("no_data_date", lang)
+        )
         citations.append(
             Citation(
                 n=n,
@@ -124,7 +135,11 @@ def _has_figures(rows: list[tuple]) -> bool:
 
 
 def answer_sql(
-    question: str, principal: Principal, subject_tables: tuple[str, ...], settings: Settings
+    question: str,
+    principal: Principal,
+    subject_tables: tuple[str, ...],
+    settings: Settings,
+    lang: str = TH,
 ) -> SqlOutcome:
     outcome = SqlOutcome()
     limitations: list[str] = []
@@ -143,31 +158,41 @@ def answer_sql(
             continue
         cov = coverage.check(question, *span)
         if cov.none_covered:
-            outcome.missing = (
-                f"ข้อมูลในตาราง {table} มีตั้งแต่ {cov.first} ถึง {cov.last} เท่านั้น "
-                f"แต่คำถามต้องการข้อมูลช่วง {', '.join(cov.missing)}"
+            outcome.missing = text(
+                "coverage_none",
+                lang,
+                table=table,
+                first=cov.first,
+                last=cov.last,
+                missing=", ".join(cov.missing),
             )
             outcome.notes.append(f"coverage: {table} ends {cov.last}, asked {list(cov.missing)}")
             return outcome
         if cov.partly_covered:
             limitations.append(
-                f"ข้อมูลใน {table} มีถึง {cov.last} — ไม่รวมช่วง {', '.join(cov.missing)}"
+                text(
+                    "coverage_partial",
+                    lang,
+                    table=table,
+                    last=cov.last,
+                    missing=", ".join(cov.missing),
+                )
             )
 
     # 2. Text-to-SQL over the subject tables only (narrowed schema).
     allowed = readable_tables(principal, settings)
     schema_tables = [t for t in subject_tables if t in allowed] or allowed
     schema = executor.describe(settings.sql_kb_path, schema_tables)
-    reply = gateway.complete(prompts.sql_messages(question, schema), settings)
+    reply = gateway.complete(prompts.sql_messages(question, schema, lang), settings)
     outcome.calls.append(reply)
     try:
         plan = parse_json(reply.text)
     except AnswerFormatError as exc:
-        outcome.missing = "ระบบไม่สามารถสร้างคำสั่ง SQL สำหรับคำถามนี้ได้"
+        outcome.missing = text("sql_unwritable", lang)
         outcome.notes.append(f"text-to-SQL: {exc}")
         return outcome
     if plan.get("answerable") is False or not isinstance(plan.get("sql"), str):
-        outcome.missing = (plan.get("missing") or "").strip() or "ตารางที่มีอยู่ไม่มีข้อมูลนี้"
+        outcome.missing = (plan.get("missing") or "").strip() or text("sql_unanswerable", lang)
         outcome.notes.append("text-to-SQL: model reported the schema cannot answer")
         return outcome
 
@@ -178,28 +203,28 @@ def answer_sql(
         result = executor.run_select(sql, settings.sql_kb_path, allowed, settings.sql_kb_timeout_s)
     except (UnsafeSQLError, executor.QueryRejected) as exc:
         outcome.sql = outcome.sql or plan["sql"]
-        outcome.missing = "คำสั่ง SQL ที่สร้างขึ้นไม่ผ่านการตรวจสอบความปลอดภัยหรือสิทธิ์การเข้าถึง"
+        outcome.missing = text("sql_rejected", lang)
         outcome.notes.append(f"SQL rejected: {exc}")
         return outcome
     except Exception as exc:  # noqa: BLE001 - any engine error is a no-answer, not a crash
-        outcome.missing = "คำสั่ง SQL ที่สร้างขึ้นทำงานไม่สำเร็จ"
+        outcome.missing = text("sql_failed", lang)
         outcome.notes.append(f"SQL failed: {type(exc).__name__}: {exc}")
         return outcome
 
     if not _has_figures(result.rows):
-        outcome.missing = "ไม่พบแถวข้อมูลที่ตรงกับเงื่อนไขของคำถาม"
+        outcome.missing = text("sql_no_rows", lang)
         outcome.notes.append("SQL returned no data")
         return outcome
     if len(result.rows) >= settings.sql_kb_max_rows:
-        limitations.append(f"แสดงผลลัพธ์สูงสุด {settings.sql_kb_max_rows} แถว")
+        limitations.append(text("max_rows", lang, n=settings.sql_kb_max_rows))
 
     # 4. Cite the tables actually read, with the rows that fed the answer.
     evidence = _evidence_rows(plan.get("evidence"), result.tables_read, settings, outcome.notes)
-    citations = _table_citations(result.tables_read, evidence, sql)
+    citations = _table_citations(result.tables_read, evidence, sql, lang)
 
     # 5. Phrase the rows; the grounding check decides whether the phrasing is kept.
     table_text = prompts.render_table(result.columns, result.rows)
-    reply = gateway.complete(prompts.sql_answer_messages(question, sql, table_text), settings)
+    reply = gateway.complete(prompts.sql_answer_messages(question, sql, table_text, lang), settings)
     outcome.calls.append(reply)
     try:
         data = parse_json(reply.text)
@@ -207,7 +232,7 @@ def answer_sql(
         outcome.notes.append(f"phrasing: {exc}; showing rows")
         data = None
     outcome.answer = from_sql_reply(
-        data, citations, result.columns, result.rows, question, limitations
+        data, citations, result.columns, result.rows, question, limitations, lang
     )
     outcome.notes += outcome.answer.notes
     return outcome

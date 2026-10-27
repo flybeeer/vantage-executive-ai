@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from vantage.sqlkb.catalog import tables_for
+from vantage.sqlkb.coverage import requested_months
 
 DOCUMENT = "document"
 SQL = "sql"
@@ -115,4 +116,8 @@ def route(question: str) -> Route:
     piece = next((s for s in _SLICES if s in q), None)
     if piece:
         return Route(SQL, tables, f"names a slice {piece!r} of {on}")
+    # "December 2026", "Q3 2026": a dated period, in either language.
+    months = requested_months(question)
+    if months:
+        return Route(SQL, tables, f"names a period {months[0]}… of {on}")
     return Route(DOCUMENT, tables, "table subject but no quantity or slice asked for")
