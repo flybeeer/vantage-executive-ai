@@ -105,9 +105,8 @@ def write_report(
         f"generation `{meta['model']}` ({meta['backend']}) · embeddings `{meta['embedding']}` "
         f"(local) · reranker `{meta['reranker']}` · {runs} run(s) per question",
         ">",
-        "> All data is synthetic (a fictional company). The questions are the 12 in "
-        "[`DEMO_PLAN.md`](DEMO_PLAN.md) §5; what each must show is in "
-        "[`eval/golden.yaml`](eval/golden.yaml).",
+        "> All data is synthetic (a fictional company). The 12 questions, and what each "
+        "must show, are in [`eval/golden.yaml`](eval/golden.yaml).",
         "",
         "## Summary",
         "",

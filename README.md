@@ -110,7 +110,7 @@ or SQL result rows the user was already allowed to see. Set
 ## Status
 
 The demo is complete end to end; the walkthrough video is next. See
-`DEMO_PLAN.md` for the plan and `REUSE_FROM_SOURCERER.md` for what was carried
+`REUSE_FROM_SOURCERER.md` for what was carried
 over from an earlier project of mine
 ([Sourcerer](https://github.com/flybeeer/Sourcerer), a hybrid-RAG assistant) and
 what had to be rebuilt.
@@ -134,7 +134,7 @@ what had to be rebuilt.
 
 ## Evaluation
 
-The 12 demo questions in `DEMO_PLAN.md` §5, each asked 3 times through the same
+The 12 demo questions in [`eval/golden.yaml`](eval/golden.yaml), each asked 3 times through the same
 path the UI uses, graded by plain rules rather than a second model. Full
 results, method and limits in [`EVAL.md`](EVAL.md).
 

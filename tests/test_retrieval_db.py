@@ -1,7 +1,7 @@
 """Access isolation, provenance and audit — against a real Postgres.
 
 The headline test is `test_director_can_never_receive_a_workspace_a_chunk`:
-`DEMO_PLAN.md` asks for proof that a B user can never receive an A-only chunk
+The project plan asks for proof that a B user can never receive an A-only chunk
 id. It is checked on the full candidate set of each leg (top_k far above the
 corpus size), not just the final top 5 — a forbidden chunk that is fetched and
 then dropped by ranking has still been read.

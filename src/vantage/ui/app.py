@@ -59,7 +59,7 @@ _EXAMPLES = {
         "อัตราสอบผ่านวิชาไหนต่ำสุดเทอม 1",
         "รายได้สาขาบางนาเดือน ส.ค. เท่าไร",
         "บอร์ดคุยเรื่องอะไรไตรมาส 2",
-        "What was Bang Na's revenue in August?",
+        "What did the board discuss in Q2?",
     ],
 }
 

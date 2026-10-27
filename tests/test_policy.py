@@ -1,6 +1,6 @@
 """The two safety rules that must never regress.
 
-`DEMO_PLAN.md` names these explicitly: **deny-by-default for unknown roles** and
+The project plan names these explicitly: **deny-by-default for unknown roles** and
 **explicit deny beats wildcard allow**. They are tested against purpose-built
 policy fixtures rather than the shipped `policy/policy.yaml`, because a rule
 should be provable on its own terms — if the demo policy later stops happening

@@ -1,6 +1,6 @@
 # Reuse inventory — Sourcerer → Executive AI Demo
 
-> Produced before writing code, per `DEMO_PLAN.md` §8.
+> Produced before writing code, per the project plan (not published).
 > Source read: `https://github.com/flybeeer/Sourcerer` (cloned to `C:\Users\Admin\src\Sourcerer`,
 > 117 files / 0.5 MB, Phases 1–7 built, Phases 8–10 design-only).
 > Date: 2026-10-24 (Day 1)
@@ -100,13 +100,13 @@ limitations** sections. New prompt template; keep `NO_ANSWER` contract.
 ## C. Build new (nothing to reuse)
 
 1. **`policy/` module** — `authorize(principal, action, resource)` +
-   `allowed_filter(principal)`. Per `DEMO_PLAN.md` §3 the answer path must call
+   `allowed_filter(principal)`. Per the project plan the answer path must call
    **only these two functions**. Two mandatory tests: deny-by-default for unknown
    roles, explicit deny beats wildcard allow. Plus the leakage test (a B user can
    never receive an A-only chunk id).
    → **Deliberately NOT Cerbos.** Phase 10 specs a Cerbos PDP sidecar + SQLGlot;
    that's the right production answer but too heavy for a 5-day window, and
-   `DEMO_PLAN.md` already asks for a plain Python policy function. Keep the Cerbos
+   the project plan already asks for a plain Python policy function. Keep the Cerbos
    seam documented in the README as the production swap (same move Sourcerer makes
    for Ollama→vLLM, SQLite→DuckDB, JSON→Postgres graph store).
 2. **Bright Academy synthetic dataset** — generator script for 2 xlsx/csv + 4 Thai
@@ -126,13 +126,13 @@ limitations** sections. New prompt template; keep `NO_ANSWER` contract.
 ## D. Decisions this surfaces
 
 ### D1. UI — Streamlit vs the UI that already exists
-`DEMO_PLAN.md` says Streamlit. Sourcerer ships `api/static/index.html` (17 KB
+The project plan says Streamlit. Sourcerer ships `api/static/index.html` (17 KB
 single-page: query box, citations, history, sources, route display) behind
 FastAPI. Extending it with a user switcher + audit page is **~2 hours**; a
 Streamlit app from scratch is most of Day 4. Recommend dropping Streamlit.
 
 ### D2. SQL store — SQLite vs Postgres
-`DEMO_PLAN.md` §3 says "PostgreSQL + pgvector + full-text". `sqlkb/` is built on
+The project plan says "PostgreSQL + pgvector + full-text". `sqlkb/` is built on
 SQLite/DuckDB (`connect_ro`, `information_schema` introspection, SQLite
 progress-handler timeout). Rewriting it for Postgres loses the cost guards.
 Recommend keeping SQLite for the tabular side (docs in pgvector, numbers in
