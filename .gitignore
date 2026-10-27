@@ -25,3 +25,7 @@ eval/results/*
 .ruff_cache/
 .idea/
 .vscode/
+
+# Personal notes, not part of the demo
+.obsidian/
+VIDEO_SCRIPT.md
