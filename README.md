@@ -6,9 +6,9 @@
 
 Built as a working demonstration, on a **synthetic** corpus for a fictional
 education company ("Bright Academy"). No real company data appears anywhere in
-this repository. The documents and the UI are in Thai; ask in Thai or English
-and the answer — citations and refusals included — comes back in the language
-of the question.
+this repository. The documents are in Thai and the UI is in English; ask in
+Thai or English and the answer — citations and refusals included — comes back
+in the language of the question.
 
 ---
 

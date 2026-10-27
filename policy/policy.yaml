@@ -15,10 +15,10 @@ version: 1
 # --- Principals (stub identity provider; a real one would supply these) ---
 principals:
   ceo:
-    display_name: "คุณสมชาย — CEO"
+    display_name: "Somchai — CEO"
     roles: [executive]
   academic_director:
-    display_name: "คุณปราณี — ผู้อำนวยการฝ่ายวิชาการ"
+    display_name: "Pranee — Academic Director"
     roles: [academic]
 
 # --- Roles → what they may reach ---

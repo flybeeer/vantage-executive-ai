@@ -60,6 +60,18 @@ def test_chat_input_is_asked_as_the_signed_in_user(asked):
     assert any("ไม่พบข้อมูล" in m.value for m in at.markdown)
 
 
+def test_the_ui_chrome_is_english(asked):
+    # Thai belongs in questions and answers only, never in the UI's own labels.
+    at = _app()
+    at.chat_input[0].set_value("What do our main competitors charge?").run()
+    chrome = [at.title[0].value, *(c.value for c in at.caption), at.chat_input[0].placeholder]
+    chrome += [at.selectbox(key="user_id").label, at.button_group(key="example").label]
+    chrome += [b.value for b in at.get("badge")]
+    chrome += [b.label for b in at.sidebar.button]
+    thai = [s for s in chrome if any("฀" <= ch <= "๿" for ch in str(s))]
+    assert thai == []
+
+
 def test_switching_user_does_not_show_the_previous_users_chat(asked):
     at = _app()
     at.chat_input[0].set_value("ยอดนักเรียนรวมเดือน ก.ย. 2026 เท่าไร").run()
