@@ -53,6 +53,14 @@ def test_example_questions_can_be_asked_one_after_another(asked):
     assert len(asked) == 2
 
 
+def test_english_examples_are_offered_and_asked_as_written(asked):
+    at = _app()
+    question = "How many students were enrolled in September 2026?"
+    assert question in at.button_group(key="example").options
+    at.button_group(key="example").set_value(question).run()
+    assert asked == [("ceo", question)]
+
+
 def test_chat_input_is_asked_as_the_signed_in_user(asked):
     at = _app()
     at.chat_input[0].set_value("คู่แข่งรายใหญ่ของเราตั้งราคาเท่าไร").run()
