@@ -113,15 +113,32 @@ def _evidence_rows(items, tables_read: list[str], settings: Settings, notes: lis
     return out
 
 
+def _has_figures(rows: list[tuple]) -> bool:
+    """False for a result with nothing to report: no rows, or only labels beside
+    empty aggregates — `('2026-12', None, 0)` is SUM over no rows and COUNT 0,
+    which must become "ไม่พบข้อมูล", not a fact reading "total_revenue  · 0"."""
+    if not rows:
+        return False
+    numbers = [v for row in rows for v in row if not isinstance(v, str)]
+    return not (None in numbers and all(v in (None, 0) for v in numbers))
+
+
 def answer_sql(
     question: str, principal: Principal, subject_tables: tuple[str, ...], settings: Settings
 ) -> SqlOutcome:
     outcome = SqlOutcome()
     limitations: list[str] = []
 
-    # 1. Coverage — before the model is asked anything.
-    for table in subject_tables:
-        span = executor.month_range(settings.sql_kb_path, table)
+    # 1. Coverage — before the model is asked anything. "ปีนี้" means the year
+    #    of the latest data, pinned once so the check and the SQL agree.
+    spans = {t: executor.month_range(settings.sql_kb_path, t) for t in subject_tables}
+    latest = max((s[1] for s in spans.values() if s), default=None)
+    if latest:
+        pinned = coverage.pin_this_year(question, int(latest[:4]))
+        if pinned != question:
+            outcome.notes.append(f"'this year' read as {latest[:4]} (latest data {latest})")
+            question = pinned
+    for table, span in spans.items():
         if span is None:
             continue
         cov = coverage.check(question, *span)
@@ -169,7 +186,7 @@ def answer_sql(
         outcome.notes.append(f"SQL failed: {type(exc).__name__}: {exc}")
         return outcome
 
-    if not result.rows or all(v is None for row in result.rows for v in row):
+    if not _has_figures(result.rows):
         outcome.missing = "ไม่พบแถวข้อมูลที่ตรงกับเงื่อนไขของคำถาม"
         outcome.notes.append("SQL returned no data")
         return outcome

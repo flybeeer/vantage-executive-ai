@@ -129,6 +129,21 @@ def test_requested_months(question, expected):
     assert coverage.requested_months(question) == expected
 
 
+@pytest.mark.parametrize(
+    ("question", "pinned"),
+    [
+        ("รายได้เดือนธันวาคมปีนี้", "รายได้เดือนธันวาคมปี 2026"),
+        ("revenue this year", "revenue year 2026"),
+        ("ยอด ก.ย. 2026", "ยอด ก.ย. 2026"),  # nothing relative: unchanged
+    ],
+)
+def test_this_year_means_the_year_of_the_data(question, pinned):
+    assert coverage.pin_this_year(question, 2026) == pinned
+    assert coverage.check(
+        coverage.pin_this_year("รายได้ธันวาคมปีนี้", 2026), "2025-01", "2026-09"
+    ).none_covered
+
+
 def test_coverage_refuses_only_when_nothing_requested_exists():
     assert coverage.check("ยอดนักเรียนเดือน ธ.ค. 2026", "2025-01", "2026-09").none_covered
     partial = coverage.check("รายได้ปี 2026 รวมเท่าไร", "2025-01", "2026-09")
@@ -157,6 +172,26 @@ def test_coverage_refuses_only_when_nothing_requested_exists():
     ],
 )
 def test_golden_questions_route(question, path):
+    assert router.route(question).path == path
+
+
+@pytest.mark.parametrize(
+    ("question", "path"),
+    [
+        # Figures asked for without "เท่าไร": a superlative, or a slice named.
+        ("เดือนกันยายนปีนี้มีนักเรียนทั้งหมดกี่คน", router.SQL),
+        ("สาขาไหนมีนักเรียนเยอะที่สุดเดือน ก.ย. 2026", router.SQL),
+        ("กำไรขั้นต้นสาขาขอนแก่นไตรมาส 3", router.SQL),
+        ("รายได้เดือนธันวาคมปีนี้", router.SQL),
+        ("ขอดูรายได้สาขาบางนาหน่อย", router.SQL),
+        ("which branch had the most students in September", router.SQL),
+        # Still documents: a target, or a subject with nothing to count.
+        ("เป้านักเรียนใหม่ตอนนี้กี่คน แล้วเดิมตั้งไว้เท่าไร", router.DOCUMENT),
+        ("นักเรียนบ่นเรื่องอะไรบ้าง", router.DOCUMENT),
+        ("ผลสอบภาษาจีนเทอม 1 เป็นยังไงบ้าง", router.DOCUMENT),
+    ],
+)
+def test_questions_in_the_users_own_words_route(question, path):
     assert router.route(question).path == path
 
 

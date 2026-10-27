@@ -71,6 +71,9 @@ only from your result rows; nothing is calculated afterwards.
 `row_ref` of every row that contributes to the answer (same filters, no \
 aggregation), so the answer can cite spreadsheet rows.
 - One SELECT per query. Never write to the database.
+- Never use the current date (date('now'), CURRENT_DATE, strftime(..., 'now')): \
+the clock is not the data. Use the months the question names; if it names none, \
+use the whole range the schema lists.
 - If the schema cannot answer the question, set "answerable" to false and say \
 in "missing" (Thai) what data would be needed.
 

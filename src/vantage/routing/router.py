@@ -1,8 +1,11 @@
 """Which path answers a question: SQL over the tables, or RAG over the documents.
 
-The rule that matters is *numbers come from SQL*. So a question goes to SQL
-when it is quantitative **and** about a catalogued table's subject — "ยอด
-นักเรียนรวมเดือน ก.ย." — and to the documents otherwise.
+The rule that matters is *numbers come from SQL*. So a question about a
+catalogued table's subject goes to SQL when it asks for a quantity — "ยอด
+นักเรียนรวมเดือน ก.ย. เท่าไร" — **or** names a slice of the table: a month,
+quarter, year or branch — "กำไรขั้นต้นสาขาขอนแก่นไตรมาส 3". People ask for a
+figure without saying "how much"; a metric for a branch or a period is a row
+in a table either way. Everything else goes to the documents.
 
 Two document markers override that: targets, plans, decisions and reports are
 things written in documents, not rows in a table. "เป้าหมายนักเรียนใหม่ปี 2026
@@ -33,8 +36,10 @@ _QUANTITATIVE = (
     "เฉลี่ย",
     "สูงสุด",
     "ต่ำสุด",
-    "มากที่สุด",
-    "น้อยที่สุด",
+    "ที่สุด",
+    "มากสุด",
+    "น้อยสุด",
+    "เยอะ",
     "โต",
     "เทียบ",
     "ต่อ",
@@ -50,6 +55,21 @@ _QUANTITATIVE = (
     "growth",
     "highest",
     "lowest",
+    "most",
+    "least",
+)
+
+# The dimensions the tables are sliced by. Naming one alongside a table subject
+# ("รายได้สาขาบางนา", "รายได้เดือนธันวาคม") asks for rows, not prose.
+_SLICES = (
+    "เดือน",
+    "ไตรมาส",
+    "ปี",
+    "สาขา",
+    "month",
+    "quarter",
+    "year",
+    "branch",
 )
 
 # Things that live in documents even when they carry a number.
@@ -88,7 +108,11 @@ def route(question: str) -> Route:
     marker = next((m for m in _DOCUMENT_MARKERS if m in q), None)
     if marker:
         return Route(DOCUMENT, tables, f"document marker {marker!r}")
+    on = ", ".join(tables)
     quant = next((m for m in _QUANTITATIVE if m in q), None)
-    if quant is None:
-        return Route(DOCUMENT, tables, "table subject but no quantitative marker")
-    return Route(SQL, tables, f"quantitative marker {quant!r} on {', '.join(tables)}")
+    if quant:
+        return Route(SQL, tables, f"quantitative marker {quant!r} on {on}")
+    piece = next((s for s in _SLICES if s in q), None)
+    if piece:
+        return Route(SQL, tables, f"names a slice {piece!r} of {on}")
+    return Route(DOCUMENT, tables, "table subject but no quantity or slice asked for")

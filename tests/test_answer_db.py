@@ -144,6 +144,31 @@ def test_q10_period_outside_the_data_is_refused_without_a_model_call(fake_llm):
     assert _audit_row(outcome.audit_id)["decision"] == "refused"
 
 
+def test_this_year_is_the_data_year_not_the_clock(fake_llm):
+    outcome = ask("ceo", "รายได้เดือนธันวาคมปีนี้")
+
+    assert outcome.decision == audit.REFUSED
+    assert "2026-09" in outcome.message and "2026-12" in outcome.message
+    assert fake_llm.calls == []
+    assert "'this year' read as 2026" in outcome.reason
+
+
+def test_an_aggregate_over_no_rows_is_not_found_not_a_fact(fake_llm):
+    # SUM over nothing is NULL and COUNT is 0: one row, nothing to report.
+    fake_llm.sql = {
+        "answerable": True,
+        "sql": "SELECT 'ภูเก็ต' AS branch, SUM(revenue) AS revenue, COUNT(*) AS n "
+        "FROM finance_monthly WHERE branch = 'ภูเก็ต'",
+        "evidence": [],
+    }
+
+    outcome = ask("ceo", "รายได้สาขาภูเก็ตเท่าไร")
+
+    assert outcome.decision == audit.REFUSED
+    assert outcome.message.startswith("ไม่พบข้อมูล")
+    assert fake_llm.sent("sql_answer") == []
+
+
 # ---------- Q11: not in the data ----------
 
 

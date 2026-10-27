@@ -11,6 +11,12 @@ Recognised: Thai month names and abbreviations (ม.ค. … ธ.ค.), English 
 names, quarters (Q3 2026, ไตรมาส 3/2569), and bare years (ปี 2026). Years may
 be CE or Buddhist Era (BE = CE + 543). A month with no year is not checked —
 guessing the year would be the very thing this module exists to prevent.
+
+"ปีนี้" / "this year" is not a guess, but it is relative to *when*: the system's
+"now" is the date of its data, not the server clock, so `pin_this_year`
+rewrites it to the year of the latest data before anything else reads the
+question — this check, and the model writing the SQL (which would otherwise
+reach for `date('now')`).
 """
 
 from __future__ import annotations
@@ -57,6 +63,12 @@ _QUARTER_RE = re.compile(
     re.IGNORECASE,
 )
 _YEAR_ONLY_RE = re.compile(rf"(?:ปี|year)\s*(?:พ\.ศ\.\s*|ค\.ศ\.\s*)?{_YEAR}", re.IGNORECASE)
+_THIS_YEAR_RE = re.compile(r"(?P<th>ปีนี้)|(?P<en>\bthis year\b)", re.IGNORECASE)
+
+
+def pin_this_year(question: str, year: int) -> str:
+    """'ปีนี้' / 'this year' → an explicit year: the year of the latest data."""
+    return _THIS_YEAR_RE.sub(lambda m: f"ปี {year}" if m["th"] else f"year {year}", question)
 
 
 def _ce(year: str) -> int:
