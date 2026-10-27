@@ -23,6 +23,8 @@ import httpx
 
 from vantage.config import Settings, get_settings
 
+_PUBLIC_API = "https://api.anthropic.com"
+
 
 class LLMError(RuntimeError):
     """A model call failed or was not configured."""
@@ -115,10 +117,13 @@ def _anthropic_client(settings: Settings):
 
     if not settings.anthropic_api_key:
         raise LLMError("GENERATION_BACKEND=anthropic but ANTHROPIC_API_KEY is empty")
-    kwargs = {"api_key": settings.anthropic_api_key}
-    if settings.anthropic_base_url:
-        kwargs["base_url"] = settings.anthropic_base_url
-    return Anthropic(**kwargs)
+    # Always pass base_url: otherwise the SDK reads ANTHROPIC_BASE_URL itself,
+    # and docker compose sets it to "" from the blank line in .env — which the
+    # SDK takes as a URL ("missing an 'http://' or 'https://' protocol").
+    return Anthropic(
+        api_key=settings.anthropic_api_key,
+        base_url=settings.anthropic_base_url or _PUBLIC_API,
+    )
 
 
 def _complete_claude(messages: list[dict], settings: Settings) -> Completion:
