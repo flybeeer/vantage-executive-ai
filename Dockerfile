@@ -9,9 +9,14 @@ RUN apt-get update \
 
 WORKDIR /app
 
-COPY pyproject.toml README.md ./
+# Dependencies first, against a stub package, so this layer is cached and a
+# code change does not re-download every wheel. The editable install points at
+# /app/src, where the real code lands on the next line. README.md is only
+# package metadata here, so an empty one keeps README edits from busting it.
+COPY pyproject.toml ./
+RUN mkdir -p src/vantage && touch README.md src/vantage/__init__.py \
+ && pip install --no-cache-dir -e ".[api,ui]"
 COPY src ./src
-RUN pip install --no-cache-dir -e ".[api,ui]"
 
 COPY scripts ./scripts
 COPY policy ./policy
