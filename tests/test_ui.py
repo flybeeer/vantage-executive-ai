@@ -42,11 +42,11 @@ def _app() -> AppTest:
 def test_example_questions_can_be_asked_one_after_another(asked):
     at = _app()
     at.button_group(key="example").set_value("ยอดนักเรียนรวมเดือน ก.ย. 2026 เท่าไร").run()
-    at.button_group(key="example").set_value("ยอดนักเรียนเดือน ธ.ค. 2026").run()
+    at.button_group(key="example").set_value("คู่แข่งรายใหญ่ของเราตั้งราคาเท่าไร").run()
 
     assert [q for _, q in asked] == [
         "ยอดนักเรียนรวมเดือน ก.ย. 2026 เท่าไร",
-        "ยอดนักเรียนเดือน ธ.ค. 2026",
+        "คู่แข่งรายใหญ่ของเราตั้งราคาเท่าไร",
     ]
     # A plain rerun must not ask the last example again.
     at.run()
@@ -55,7 +55,8 @@ def test_example_questions_can_be_asked_one_after_another(asked):
 
 def test_english_examples_are_offered_and_asked_as_written(asked):
     at = _app()
-    question = "How many students were enrolled in September 2026?"
+    question = "What did the board decide about branch expansion?"
+    assert len(at.button_group(key="example").options) == 4
     assert question in at.button_group(key="example").options
     at.button_group(key="example").set_value(question).run()
     assert asked == [("ceo", question)]

@@ -45,27 +45,21 @@ _BADGES = {
     audit.ERROR: ("System error", "gray"),
 }
 
-# One-click demo questions: the golden set (Thai, like the documents), then
-# English ones that were run end to end before going in — the answer comes back
-# in the language of the question.
+# One-click demo questions, four per user: three from the golden set (Thai, like
+# the documents) and one English question that was run end to end before going
+# in — the answer comes back in the language of the question.
 _EXAMPLES = {
     "ceo": [
         "ยอดนักเรียนรวมเดือน ก.ย. 2026 เท่าไร",
         "เป้าหมายนักเรียนใหม่ปี 2026 คือเท่าไร",
-        "สาขาไหนรายได้โตสูงสุด Q3 2026 เทียบ Q2",
-        "ยอดนักเรียนเดือน ธ.ค. 2026",
         "คู่แข่งรายใหญ่ของเราตั้งราคาเท่าไร",
-        "How many students were enrolled in September 2026?",
         "What did the board decide about branch expansion?",
-        "Student numbers for December 2026",
     ],
     "academic_director": [
         "อัตราสอบผ่านวิชาไหนต่ำสุดเทอม 1",
         "รายได้สาขาบางนาเดือน ส.ค. เท่าไร",
         "บอร์ดคุยเรื่องอะไรไตรมาส 2",
-        "Which subject had the lowest pass rate in term 1?",
         "What was Bang Na's revenue in August?",
-        "What did the board discuss in Q2?",
     ],
 }
 
