@@ -6,7 +6,8 @@
 
 Built as a working demonstration, on a **synthetic** corpus for a fictional
 education company ("Bright Academy"). No real company data appears anywhere in
-this repository.
+this repository. The documents, the UI and the answers are in Thai; questions
+can be asked in Thai or English.
 
 ---
 
@@ -17,7 +18,7 @@ Three things a CV can't show:
 1. **Grounded answers.** Every fact carries a citation naming the file, its
    version, the page or spreadsheet row, and the date the data is current as of.
 2. **Honest refusal.** When retrieval finds no supporting evidence, the answer is
-   "ไม่พบข้อมูล" plus a statement of what is missing — not a plausible guess.
+   "no data found" plus a statement of what is missing — not a plausible guess.
 3. **Governed access.** Two workspaces are isolated and deny-by-default, the
    access filter is applied *inside* the retrieval query, and every question —
    including the denied ones — is written to an append-only audit log.
@@ -63,7 +64,7 @@ flowchart TD
 
     subgraph OUT["Outcome"]
         DENY["denied<br/>nothing read"]
-        REFUSE["refused<br/>ไม่พบข้อมูล + what is missing"]
+        REFUSE["refused<br/>no data found + what is missing"]
         ALLOW["allowed<br/>facts · analysis · limitations<br/>file · version · page or rows · data date"]
     end
 
@@ -186,8 +187,9 @@ localhost only.
 Or ask from the command line (every call is audited):
 
 ```bash
-python scripts/ask.py --user ceo "บอร์ดตัดสินใจอะไรเรื่องการขยายสาขา"
-python scripts/ask.py --user academic_director "รายได้สาขาบางนาเดือน ส.ค. เท่าไร" --audit
+python scripts/ask.py --user ceo "What did the board decide about branch expansion?"
+python scripts/ask.py --user ceo "How many students were enrolled in September 2026?"
+python scripts/ask.py --user academic_director "What was Bang Na's revenue in August?" --audit
 ```
 
 `make test` needs no Docker: the database tests start an embedded Postgres with
@@ -243,8 +245,9 @@ produced a figure nobody can trace; on the document route that fact is dropped,
 on the SQL route the phrasing is discarded and the result rows are shown as
 they are. What a check removed goes into the audit log.
 
-**Some refusals happen before the model is asked.** "ยอดนักเรียนเดือน ธ.ค.
-2026" is checked against the months the table actually holds (Thai and English
+**Some refusals happen before the model is asked.** A question about student
+numbers for December 2026 is checked against the months the table actually
+holds (Thai and English
 month names, quarters, CE or Buddhist-Era years) and refused with the gap named
 — the data ends in September — rather than handed to a model that might answer
 with the latest month it can find.
