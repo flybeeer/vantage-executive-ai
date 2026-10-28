@@ -10,6 +10,9 @@ this repository. The documents are in Thai and the UI is in English; ask in
 Thai or English and the answer — citations and refusals included — comes back
 in the language of the question.
 
+**Walkthrough video** (6 min, spoken Thai with Thai subtitles):
+https://youtu.be/TEihPxdkAdc
+
 ---
 
 ## What this demo is trying to prove
@@ -109,7 +112,8 @@ or SQL result rows the user was already allowed to see. Set
 
 ## Status
 
-The demo is complete end to end; the walkthrough video is next. See
+The demo is complete end to end, with a
+[walkthrough video](https://youtu.be/TEihPxdkAdc). See
 `REUSE_FROM_SOURCERER.md` for what was carried
 over from an earlier project of mine
 ([Sourcerer](https://github.com/flybeeer/Sourcerer), a hybrid-RAG assistant) and
@@ -130,7 +134,7 @@ what had to be rebuilt.
 | Demo UI: sign in as A or B, chat with a citation panel, audit log page | done |
 | Eval harness: golden set, rule-based grading → [`EVAL.md`](EVAL.md) | done |
 | Architecture diagram | done |
-| Walkthrough video | next |
+| Walkthrough video | [done](https://youtu.be/TEihPxdkAdc) |
 
 ## Evaluation
 
